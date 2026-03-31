@@ -272,6 +272,10 @@ input[type="number"], input[type="text"], select {
         </div>
       </div>
       <div class="card">
+        <h3>직종별 임용 설정 <span class="help-icon">?<span class="help-tooltip">각 직종의 <strong>출생년도</strong>와 <strong>임용시점</strong>(첫 근무 시작 연도)을 설정합니다.<br>나이 계산 및 소득 시작 시점에 반영됩니다.</span></span></h3>
+        <div id="careerStartControls"></div>
+      </div>
+      <div class="card">
         <h3>IT 성장률 커스텀 <span class="help-icon">?<span class="help-tooltip">IT 개발자의 연차별 연봉 인상률을 직접 조정합니다.<br><strong>이직 점프</strong>: 3년차/6년차 이직 시 연봉 점프율<br><strong>인상률</strong>: 같은 회사에서의 연간 인상률<br>이직 안 하면 점프를 0%로 설정하세요.</span></span></h3>
         <div id="growthControls"></div>
       </div>
@@ -650,7 +654,7 @@ input[type="number"], input[type="text"], select {
     <div class="card">
       <div class="card-header">
         <h3>시나리오 누적소득</h3>
-        <span class="help-icon">?<span class="help-tooltip">위에서 만든 <strong>여러 IT 커리어 시나리오</strong>의 누적소득을 비교합니다.<br>파란 점선 = 경찰 기준선<br>각 시나리오의 초봉/이직률/후반 성장률에 따라 궤적이 달라집니다.</span></span>
+        <span class="help-icon">?<span class="help-tooltip">위에서 만든 <strong>여러 IT 커리어 시나리오</strong>의 누적소득을 비교합니다.<br>점선 = 비교 직종 기준선<br>각 시나리오의 초봉/이직률/후반 성장률에 따라 궤적이 달라집니다.</span></span>
         <div class="view-toggle">
           <button class="view-toggle-btn active" onclick="toggleView('scenCumul','chart',this)">차트</button>
           <button class="view-toggle-btn" onclick="toggleView('scenCumul','table',this)">표</button>
@@ -969,7 +973,7 @@ input[type="number"], input[type="text"], select {
       <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:6px">소득 분석</div>
       <div style="margin-bottom:12px">
         <div style="font-weight:600">💰 소득비교</div>
-        <div style="font-size:13px;color:var(--muted)">IT 개발자(초봉 직접 설정)와 경찰/7급/장교/소방/9급의 누적소득을 비교합니다. 성장률 커스텀, 인플레 반영 토글 가능. 퇴직 후 공무원연금 vs 국민연금도 반영됩니다.</div>
+        <div style="font-size:13px;color:var(--muted)">IT 개발자(초봉 직접 설정)와 7급/장교/소방/9급/경찰의 누적소득을 비교합니다. 성장률 커스텀, 인플레 반영 토글 가능. 퇴직 후 공무원연금 vs 국민연금도 반영됩니다.</div>
       </div>
       <div style="margin-bottom:12px">
         <div style="font-weight:600">💻 IT연봉 데이터</div>
@@ -993,7 +997,7 @@ input[type="number"], input[type="text"], select {
       </div>
       <div style="margin-bottom:12px">
         <div style="font-weight:600">🏃 따라잡기</div>
-        <div style="font-size:13px;color:var(--muted)">특정 직종(예: 경찰)을 선택하고 목표 연도를 설정하면, 그때까지 추월하기 위한 필요 초봉과 구체적 실행계획을 제시합니다.</div>
+        <div style="font-size:13px;color:var(--muted)">특정 직종(예: 7급)을 선택하고 목표 연도를 설정하면, 그때까지 추월하기 위한 필요 초봉과 구체적 실행계획을 제시합니다.</div>
       </div>
       <div style="margin-bottom:12px">
         <div style="font-weight:600">🏁 마일스톤</div>
@@ -1114,8 +1118,6 @@ input[type="number"], input[type="text"], select {
 // ============================================================
 
 const CAREERS = {
-  police:  { name:'경찰 조기임용(03생)', start:2024, color:'#3b82f6', birth:2003, retireAge:60,
-    ranks:[[1,'순경',3700,.07],[5,'경장',5000,.05],[10,'경사',6300,.04],[16,'경위',7850,.03],[24,'경감',9900,.025],[32,'총경',11200,.02]] },
   civil7:  { name:'7급 공무원', start:2027, color:'#a855f7', birth:1997, retireAge:60,
     ranks:[[1,'7급',3400,.06],[7,'6급',4800,.045],[15,'5급',6500,.035],[25,'4급',8200,.025]] },
   officer: { name:'장교(소위)', start:2027, color:'#22c55e', birth:1997, retireAge:56,
@@ -1124,6 +1126,8 @@ const CAREERS = {
     ranks:[[1,'소방사',3600,.07],[5,'소방교',4900,.05],[10,'소방장',6200,.04],[16,'소방위',7700,.03],[24,'소방경',9700,.025],[32,'소방령',11000,.02]] },
   civil9:  { name:'9급 공무원', start:2027, color:'#6b7280', birth:1997, retireAge:60,
     ranks:[[1,'9급',2900,.07],[4,'8급',3600,.06],[8,'7급',4400,.05],[14,'6급',5600,.04],[22,'5급',7000,.03]] },
+  police:  { name:'경찰', start:2027, color:'#3b82f6', birth:1997, retireAge:60,
+    ranks:[[1,'순경',3700,.07],[5,'경장',5000,.05],[10,'경사',6300,.04],[16,'경위',7850,.03],[24,'경감',9900,.025],[32,'총경',11200,.02]] },
 };
 
 // 연령대별 소득 분포 (통계청/고용노동부 2024 기준)
@@ -1148,8 +1152,8 @@ const GROWTH_DEFAULTS = [
 ];
 
 const FROM = 2024;
-let activeKeys = ['police','civil7','officer','fire'];
-let catchupTarget = 'police';
+let activeKeys = ['civil7','officer','fire','civil9'];
+let catchupTarget = 'civil7';
 let charts = {};
 let scenarios = [];
 
@@ -1341,8 +1345,8 @@ function fillTable(prefix) {
     h += `<th style="color:#ef4444">IT</th></tr></thead><tbody>`;
     milestones.forEach(m => {
       h += `<tr><td>${m.l}</td>`;
-      activeKeys.forEach(k => { const yr=fm(cums[k],m.a); h+=`<td>${yr?yr+'년 ('+(yr-(CAREERS[k].start))+'년차)':'미달'}</td>`; });
-      const yr=fm(cums.it,m.a); h+=`<td class="${yr?'highlight':'negative'}">${yr?yr+'년 ('+(yr-2026)+'년차)':'미달'}</td></tr>`;
+      activeKeys.forEach(k => { const yr=fm(cums[k],m.a); h+=`<td>${yr?yr+'년 ('+(yr-CAREERS[k].birth)+'세, '+(yr-CAREERS[k].start)+'년차)':'미달'}</td>`; });
+      const yr=fm(cums.it,m.a); h+=`<td class="${yr?'highlight':'negative'}">${yr?yr+'년 ('+(yr-getBirthYear())+'세, '+(yr-getITStart())+'년차)':'미달'}</td></tr>`;
     });
     h += '</tbody></table>'; el.innerHTML = h;
   }
@@ -1363,12 +1367,13 @@ function fillTable(prefix) {
 
   if (prefix === 'scenCumul') {
     if(scenarios.length===0) return;
-    const policeCum=cumul(calcPublic(CAREERS.police));
-    let h='<table class="result-table"><thead><tr><th>연도</th><th>경찰</th>';
+    const refKey = activeKeys.length > 0 ? activeKeys[0] : null;
+    const refCum = refKey ? cumul(calcPublic(CAREERS[refKey])) : {};
+    let h=`<table class="result-table"><thead><tr><th>연도</th><th>나이</th><th>${refKey?CAREERS[refKey].name:'-'}</th>`;
     scenarios.forEach((s,i)=>h+=`<th style="color:${SCENARIO_COLORS[i%SCENARIO_COLORS.length]}">${s.name}</th>`);
     h+='</tr></thead><tbody>';
     [2030,2035,2040,2045,2050,2057].forEach(y=>{
-      h+=`<tr><td>${y}</td><td>${((policeCum[y]||0)/10000).toFixed(1)}억</td>`;
+      h+=`<tr><td>${y}</td><td>${y-getBirthYear()}세</td><td>${((refCum[y]||0)/10000).toFixed(1)}억</td>`;
       scenarios.forEach(s=>{
         const g={growth_early:s.early,growth_jump1:s.jump1,growth_mid:6,growth_jump2:s.jump2,growth_late:5,growth_senior:4,growth_veteran:s.veteran};
         const c=cumul(calcIT(s.salary,g));
@@ -1403,8 +1408,10 @@ function updateDashboard() {
   // 실수령 계산
   const th = calcTakeHome(salary);
   const itCum2057 = (cums.it[2057] || cums.it[getTO()] || 0);
-  const policeCum2057 = (cums.police?.[2057] || cums.police?.[getTO()] || 0);
-  const crossPolice = cums.police ? findCross(cums.police, cums.it) : null;
+  // 비교 대상: 첫 번째 활성 직종
+  const compKey = activeKeys.length > 0 ? activeKeys[0] : null;
+  const compName = compKey ? CAREERS[compKey].name : '';
+  const crossComp = compKey && cums[compKey] ? findCross(cums[compKey], cums.it) : null;
 
   // 또래 대비 위치
   const p = AGE_PERCENTILES['30-34'] || AGE_PERCENTILES['25-29'];
@@ -1421,7 +1428,7 @@ function updateDashboard() {
   document.getElementById('dbMetrics').innerHTML = `
     <div class="summary-card"><div class="label">IT 초봉</div><div class="value" style="color:var(--accent)">${salary.toLocaleString()}만</div><div class="sub">월 실수령 ${th.takeHome.toFixed(0)}만</div></div>
     <div class="summary-card"><div class="label">생애 누적소득</div><div class="value" style="color:var(--green)">${(itCum2057/10000).toFixed(1)}억</div><div class="sub">${getTO()}년(${getLifeExpect()}세)까지</div></div>
-    <div class="summary-card"><div class="label">경찰 추월</div><div class="value" style="color:${crossPolice?'var(--green)':'var(--red)'};">${crossPolice ? crossPolice+'년' : '불가'}</div><div class="sub">${crossPolice ? (crossPolice-by)+'세' : '초봉 올려야'}</div></div>
+    <div class="summary-card"><div class="label">${compName||'직종'} 추월</div><div class="value" style="color:${crossComp?'var(--green)':'var(--red)'};">${crossComp ? crossComp+'년('+( crossComp-by)+'세)' : '불가'}</div><div class="sub">${crossComp ? '' : compKey?'초봉 올려야':'직종 선택 필요'}</div></div>
     <div class="summary-card"><div class="label">또래 위치</div><div class="value" style="color:${percentile>=50?'var(--green)':'var(--orange)'}">상위 ${100-percentile}%</div><div class="sub">${age}세 기준 추정</div></div>
     <div class="summary-card"><div class="label">공제율</div><div class="value">${(th.totalDeduct/th.monthly*100).toFixed(0)}%</div><div class="sub">4대보험+세금</div></div>
   `;
@@ -1435,11 +1442,13 @@ function updateDashboard() {
   else if (salary >= 3500) diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--yellow)"><strong style="color:var(--yellow)">초봉 평균</strong> — ${salary.toLocaleString()}만은 IT 신입 중위 수준입니다. 이직으로 빠르게 올려야 합니다.</div>`;
   else diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--red)"><strong style="color:var(--red)">초봉 낮음</strong> — ${salary.toLocaleString()}만은 IT 신입 하위 40% 수준입니다. 경력 쌓고 1~2년 내 이직을 강력 추천합니다.</div>`;
 
-  // 경찰 비교
-  if (crossPolice) {
-    diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--accent)"><strong style="color:var(--accent)">경찰 추월 가능</strong> — ${crossPolice}년(${crossPolice-by}세)에 누적소득이 경찰을 추월합니다. 이직 전략을 꾸준히 실행하세요.</div>`;
-  } else {
-    diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--red)"><strong style="color:var(--red)">경찰 추월 어려움</strong> — 현재 초봉으로는 경찰 누적소득을 따라잡기 어렵습니다. 초봉을 높이거나 이직 전략을 강화하세요. [따라잡기] 탭에서 필요 초봉을 확인하세요.</div>`;
+  // 비교 직종 추월 진단
+  if (compKey) {
+    if (crossComp) {
+      diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--accent)"><strong style="color:var(--accent)">${compName} 추월 가능</strong> — ${crossComp}년(${crossComp-by}세)에 누적소득이 ${compName}을 추월합니다. 이직 전략을 꾸준히 실행하세요.</div>`;
+    } else {
+      diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--red)"><strong style="color:var(--red)">${compName} 추월 어려움</strong> — 현재 초봉으로는 ${compName} 누적소득을 따라잡기 어렵습니다. 초봉을 높이거나 이직 전략을 강화하세요. [따라잡기] 탭에서 필요 초봉을 확인하세요.</div>`;
+    }
   }
 
   // 저축 진단
@@ -1482,13 +1491,15 @@ function updateDashboard() {
   // 미니 차트
   const years = []; for(let y=FROM;y<=Math.min(getTO(),2065);y++) years.push(y);
   const ds = [];
-  if (cums.police) ds.push({label:'경찰',data:years.map(y=>(cums.police[y]||0)/10000),borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,tension:.3,borderDash:[3,3]});
+  activeKeys.forEach(k => {
+    if (cums[k]) ds.push({label:CAREERS[k].name,data:years.map(y=>(cums[k][y]||0)/10000),borderColor:CAREERS[k].color,borderWidth:1.5,pointRadius:0,tension:.3,borderDash:[3,3]});
+  });
   ds.push({label:`IT(${salary.toLocaleString()}만)`,data:years.map(y=>(cums.it[y]||0)/10000),borderColor:'#ef4444',borderWidth:2.5,pointRadius:0,tension:.3});
   renderChart('dbMiniChart', years, ds, '억원');
 
   // 빠른 링크
   const links = [
-    {tab:'income',emoji:'💰',title:'직종별 소득 비교',desc:'경찰/공무원/장교와 IT 생애소득 비교'},
+    {tab:'income',emoji:'💰',title:'직종별 소득 비교',desc:'공무원/장교/소방과 IT 생애소득 비교'},
     {tab:'itdata',emoji:'💻',title:'IT 연봉 통계 확인',desc:'KOSA 공식 직무별/분야별 연봉 데이터'},
     {tab:'takehome',emoji:'💵',title:'실수령액 계산',desc:'4대보험+세금 공제 후 실수령액'},
     {tab:'goal',emoji:'🎯',title:'목표 설정 & 역산',desc:'"50세까지 20억" → 필요 초봉은?'},
@@ -2107,11 +2118,16 @@ function updateScenarioTab() {
   const years = []; for(let y=getITStart();y<=getTO();y++) years.push(y);
   const cumDS = [], salDS = [];
 
-  // 경찰 기준선
-  const policeCum = cumul(calcPublic(CAREERS.police));
-  cumDS.push({ label:'경찰 조기임용(03생)', data:years.map(y=>(policeCum[y]||0)/10000), borderColor:'#3b82f6', borderWidth:2, pointRadius:0, tension:.3, borderDash:[4,4] });
+  // 비교 직종 기준선
+  const scCompKey = activeKeys.length > 0 ? activeKeys[0] : null;
+  const scCompName = scCompKey ? CAREERS[scCompKey].name : '';
+  let scCompCum = {};
+  if (scCompKey) {
+    scCompCum = cumul(calcPublic(CAREERS[scCompKey]));
+    cumDS.push({ label:scCompName, data:years.map(y=>(scCompCum[y]||0)/10000), borderColor:CAREERS[scCompKey].color, borderWidth:2, pointRadius:0, tension:.3, borderDash:[4,4] });
+  }
 
-  let resultHtml = '<table class="result-table"><thead><tr><th>시나리오</th><th>초봉</th><th>2040</th><th>2050</th><th>2057</th><th>경찰추월</th></tr></thead><tbody>';
+  let resultHtml = `<table class="result-table"><thead><tr><th>시나리오</th><th>초봉</th><th>2040</th><th>2050</th><th>2057</th><th>${scCompName||'직종'}추월</th></tr></thead><tbody>`;
 
   scenarios.forEach((s, i) => {
     const color = SCENARIO_COLORS[i % SCENARIO_COLORS.length];
@@ -2122,10 +2138,10 @@ function updateScenarioTab() {
     cumDS.push({ label:s.name, data:years.map(y=>(c[y]||0)/10000), borderColor:color, borderWidth:2.5, pointRadius:0, tension:.3 });
     salDS.push({ label:s.name, data:years.map(y=>(d[y]?.salary||0)/10000), borderColor:color, borderWidth:2.5, pointRadius:0, tension:.3 });
 
-    const cross = findCross(policeCum, c);
+    const cross = scCompKey ? findCross(scCompCum, c) : null;
     resultHtml += `<tr><td style="color:${color}">${s.name}</td><td>${s.salary.toLocaleString()}만</td>
       <td>${((c[2040]||0)/10000).toFixed(1)}억</td><td>${((c[2050]||0)/10000).toFixed(1)}억</td>
-      <td>${((c[2057]||0)/10000).toFixed(1)}억</td><td>${cross?cross+'년':'불가'}</td></tr>`;
+      <td>${((c[2057]||0)/10000).toFixed(1)}억</td><td>${cross?cross+'년('+(cross-getBirthYear())+'세)':'불가'}</td></tr>`;
   });
   resultHtml += '</tbody></table>';
 
@@ -2602,7 +2618,7 @@ function renderChart(id, labels, datasets, yLabel) {
     type:'line', data:{labels,datasets},
     options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
       plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y?.toFixed(1)}${yLabel}`}}},
-      scales:{x:{ticks:{color:'#64748b',maxTicksLimit:12},grid:{color:'#1e293b'}},y:{ticks:{color:'#64748b',callback:v=>v.toFixed(0)+yLabel.replace('억원','억')},grid:{color:'#1e293b'}}}
+      scales:{x:{ticks:{color:'#64748b',maxTicksLimit:12,callback:function(v,i){const yr=this.getLabelForValue(v);const age=yr-getBirthYear();return yr+'('+age+'세)';}},grid:{color:'#1e293b'}},y:{ticks:{color:'#64748b',callback:v=>v.toFixed(0)+yLabel.replace('억원','억')},grid:{color:'#1e293b'}}}
     }
   });
 }
@@ -2714,6 +2730,20 @@ window.addEventListener('load', () => {
     div.innerHTML = `<span class="check-dot" style="background:${v.color}"></span>${v.name}`;
     div.onclick = () => { catchupTarget=k; ct.querySelectorAll('.check-item').forEach(d=>d.classList.remove('active')); div.classList.add('active'); updateCatchupTab(); };
     ct.appendChild(div);
+  });
+
+  // 직종별 임용 설정
+  const csc = document.getElementById('careerStartControls');
+  Object.entries(CAREERS).forEach(([k,v]) => {
+    csc.innerHTML += `<div style="margin-bottom:10px;padding:8px;background:var(--bg);border-radius:6px;border-left:3px solid ${v.color}">
+      <div style="font-weight:600;font-size:13px;color:${v.color};margin-bottom:6px">${v.name}</div>
+      <div class="range-row" style="margin-bottom:4px"><label style="min-width:55px">출생년도</label>
+        <input type="number" id="cb_${k}" value="${v.birth}" min="1970" max="2005" style="width:80px" onchange="CAREERS['${k}'].birth=parseInt(this.value);onGlobalChange()">
+      </div>
+      <div class="range-row"><label style="min-width:55px">임용시점</label>
+        <input type="number" id="cs_${k}" value="${v.start}" min="2020" max="2040" style="width:80px" onchange="CAREERS['${k}'].start=parseInt(this.value);onGlobalChange()">
+      </div>
+    </div>`;
   });
 
   // 성장률
