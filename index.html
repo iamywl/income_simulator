@@ -1,0 +1,3236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>소득 & 재테크 시뮬레이터</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.1.0/dist/chartjs-plugin-annotation.min.js"></script>
+<style>
+:root {
+  --bg: #0f172a; --card: #1e293b; --border: #334155; --text: #e2e8f0;
+  --muted: #94a3b8; --accent: #3b82f6; --red: #ef4444; --green: #22c55e;
+  --purple: #a855f7; --orange: #f97316; --cyan: #06b6d4; --yellow: #eab308;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, 'Apple SD Gothic Neo', sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* 사이드바 레이아웃 */
+.app-layout { display:flex; min-height:100vh; }
+.sidebar { width:220px; min-width:220px; background:var(--card); border-right:1px solid var(--border); position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:200; transition:transform .3s; }
+.sidebar-header { padding:16px; border-bottom:1px solid var(--border); font-size:15px; font-weight:700; color:var(--accent); }
+.sidebar-group { padding:8px 0; border-bottom:1px solid var(--border); }
+.sidebar-group-label { padding:4px 16px; font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+.tab { display:flex; align-items:center; gap:8px; padding:9px 16px; cursor:pointer; font-size:13px; font-weight:500; color:var(--muted); transition:all .15s; white-space:nowrap; border:none; background:none; width:100%; text-align:left; }
+.tab:hover { color:var(--text); background:rgba(255,255,255,0.05); }
+.tab.active { color:var(--accent); background:rgba(59,130,246,0.1); border-right:3px solid var(--accent); }
+.tab-emoji { font-size:16px; width:20px; text-align:center; }
+.main-content { margin-left:220px; flex:1; min-width:0; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+/* 모바일 사이드바 토글 */
+.sidebar-toggle { display:none; position:fixed; top:10px; left:10px; z-index:300; background:var(--accent); color:white; border:none; border-radius:8px; width:40px; height:40px; font-size:20px; cursor:pointer; }
+@media (max-width:900px) {
+  .sidebar { transform:translateX(-100%); }
+  .sidebar.open { transform:translateX(0); }
+  .sidebar-toggle { display:block; }
+  .main-content { margin-left:0; }
+}
+
+.container { max-width:1500px; margin:0 auto; padding:20px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; }
+.card h3 { font-size:15px; margin-bottom:14px; color:var(--accent); }
+
+label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+input[type="range"] { width:100%; accent-color:var(--accent); }
+input[type="number"], input[type="text"], select {
+  width:100%; padding:8px 10px; background:var(--bg); border:1px solid var(--border);
+  border-radius:6px; color:var(--text); font-size:14px;
+}
+.range-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.range-row input[type="range"] { flex:1; }
+.range-row .val { min-width:60px; text-align:right; font-weight:700; font-size:15px; color:var(--accent); }
+.range-row label { min-width:100px; margin-bottom:0; }
+
+.check-group { display:flex; flex-wrap:wrap; gap:8px; }
+.check-item { display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:6px; cursor:pointer; font-size:13px; border:1px solid var(--border); transition:all .2s; }
+.check-item.active { border-color:currentColor; background:rgba(255,255,255,0.05); }
+.check-dot { width:10px; height:10px; border-radius:50%; }
+
+.btn { padding:10px 20px; border:none; border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; transition:all .2s; }
+.btn-primary { background:var(--accent); color:white; }
+.btn-primary:hover { background:#2563eb; }
+.btn-secondary { background:var(--border); color:var(--text); }
+.btn-secondary:hover { background:#475569; }
+.btn-danger { background:var(--red); color:white; }
+.btn-success { background:var(--green); color:white; }
+.btn-group { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+
+.result-table { width:100%; border-collapse:collapse; font-size:13px; }
+.result-table th { background:var(--bg); padding:8px; text-align:right; font-weight:600; color:var(--muted); border-bottom:1px solid var(--border); }
+.result-table td { padding:8px; text-align:right; border-bottom:1px solid rgba(255,255,255,0.05); }
+.result-table td:first-child, .result-table th:first-child { text-align:left; }
+.highlight { color:var(--green); font-weight:700; }
+.negative { color:var(--red); font-weight:700; }
+.warn { color:var(--orange); font-weight:700; }
+
+.summary-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px; }
+.summary-card { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; text-align:center; }
+.summary-card .label { font-size:11px; color:var(--muted); }
+.summary-card .value { font-size:22px; font-weight:800; margin:6px 0; }
+.summary-card .sub { font-size:11px; color:var(--muted); }
+
+.chart-container { position:relative; height:360px; }
+
+/* 마일스톤 타임라인 */
+.timeline { position:relative; padding:10px 0 10px 30px; border-left:3px solid var(--border); }
+.timeline-item { position:relative; margin-bottom:18px; padding-left:20px; }
+.timeline-item::before { content:''; position:absolute; left:-37px; top:4px; width:14px; height:14px; border-radius:50%; border:3px solid var(--accent); background:var(--bg); }
+.timeline-item.reached::before { background:var(--green); border-color:var(--green); }
+.timeline-item.unreachable::before { background:var(--red); border-color:var(--red); }
+.timeline-year { font-size:13px; font-weight:700; color:var(--accent); }
+.timeline-desc { font-size:12px; color:var(--muted); margin-top:2px; }
+.timeline-detail { font-size:11px; color:var(--text); margin-top:2px; }
+
+/* 퍼센타일 게이지 */
+.gauge-bar { height:28px; background:var(--bg); border-radius:14px; overflow:hidden; position:relative; margin:6px 0; border:1px solid var(--border); }
+.gauge-fill { height:100%; border-radius:14px; transition:width .5s ease; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; font-size:12px; font-weight:700; }
+.gauge-labels { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-top:2px; }
+
+/* 목표 카드 */
+.goal-card { background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px; }
+.goal-card.achieved { border-color:var(--green); }
+.goal-card.in-progress { border-color:var(--yellow); }
+.goal-card.impossible { border-color:var(--red); }
+.goal-status { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; }
+
+/* 시나리오 비교 */
+.scenario-tag { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; margin:2px; }
+
+/* 도움말 아이콘 */
+.help-icon { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:var(--border); color:var(--muted); font-size:12px; font-weight:700; cursor:pointer; margin-left:6px; transition:all .2s; position:relative; }
+.help-icon:hover { background:var(--accent); color:white; }
+.help-tooltip { display:none; position:absolute; top:28px; left:50%; transform:translateX(-50%); background:#0f172a; border:1px solid var(--accent); border-radius:8px; padding:12px 14px; font-size:12px; font-weight:400; color:var(--text); width:280px; z-index:200; line-height:1.6; box-shadow:0 8px 24px rgba(0,0,0,.5); }
+.help-icon:hover .help-tooltip { display:block; }
+.help-tooltip::before { content:''; position:absolute; top:-6px; left:50%; transform:translateX(-50%); border-left:6px solid transparent; border-right:6px solid transparent; border-bottom:6px solid var(--accent); }
+
+/* 차트/표 토글 */
+.view-toggle { display:flex; gap:0; border-radius:6px; overflow:hidden; border:1px solid var(--border); margin-left:auto; }
+.view-toggle-btn { padding:4px 12px; font-size:11px; font-weight:600; cursor:pointer; background:var(--bg); color:var(--muted); border:none; transition:all .2s; }
+.view-toggle-btn.active { background:var(--accent); color:white; }
+.card-header { display:flex; align-items:center; margin-bottom:14px; }
+.card-header h3 { margin-bottom:0; flex:1; }
+
+@media (max-width:900px) { .grid-2, .grid-3 { grid-template-columns:1fr; } .help-tooltip { left:auto; right:0; transform:none; } }
+</style>
+</head>
+<body>
+
+<button class="sidebar-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+
+<div class="app-layout">
+<nav class="sidebar">
+  <div class="sidebar-header">소득 & 재테크<br>시뮬레이터</div>
+
+  <div class="sidebar-group">
+    <div class="tab active" onclick="switchTab('dashboard')" style="font-weight:700"><span class="tab-emoji">🏠</span> 대시보드</div>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">소득 분석</div>
+    <div class="tab" onclick="switchTab('income')"><span class="tab-emoji">💰</span> 소득비교</div>
+    <div class="tab" onclick="switchTab('itdata')"><span class="tab-emoji">💻</span> IT연봉 데이터</div>
+    <div class="tab" onclick="switchTab('takehome')"><span class="tab-emoji">💵</span> 실수령액</div>
+    <div class="tab" onclick="switchTab('living')"><span class="tab-emoji">🏠</span> 생활비</div>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">목표 & 비교</div>
+    <div class="tab" onclick="switchTab('goal')"><span class="tab-emoji">🎯</span> 목표설정</div>
+    <div class="tab" onclick="switchTab('catchup')"><span class="tab-emoji">🏃</span> 따라잡기</div>
+    <div class="tab" onclick="switchTab('milestone')"><span class="tab-emoji">🏁</span> 마일스톤</div>
+    <div class="tab" onclick="switchTab('percentile')"><span class="tab-emoji">📊</span> 또래비교</div>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">커리어 전략</div>
+    <div class="tab" onclick="switchTab('scenario')"><span class="tab-emoji">🔀</span> 시나리오</div>
+    <div class="tab" onclick="switchTab('jobhop')"><span class="tab-emoji">🔄</span> 이직타이밍</div>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">재테크 & 자산</div>
+    <div class="tab" onclick="switchTab('fire')"><span class="tab-emoji">🔥</span> FIRE 은퇴</div>
+    <div class="tab" onclick="switchTab('invest')"><span class="tab-emoji">📈</span> 재테크</div>
+    <div class="tab" onclick="switchTab('compound')"><span class="tab-emoji">💎</span> 복리효과</div>
+    <div class="tab" onclick="switchTab('realestate')"><span class="tab-emoji">🏡</span> 부동산</div>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">세금 & 종합</div>
+    <div class="tab" onclick="switchTab('yearend')"><span class="tab-emoji">🧾</span> 연말정산</div>
+    <div class="tab" onclick="switchTab('total')"><span class="tab-emoji">🏆</span> 종합자산</div>
+  </div>
+
+  <div class="sidebar-group">
+    <div class="tab" onclick="switchTab('guide')" style="color:var(--cyan)"><span class="tab-emoji">📖</span> 사용법 가이드</div>
+  </div>
+</nav>
+
+<div class="main-content">
+
+<!-- ===== 대시보드 ===== -->
+<div id="tab-dashboard" class="tab-content active">
+<div class="container">
+
+  <!-- 프로필 요약 -->
+  <div class="card" style="border-color:var(--accent);background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%)">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:20px;font-weight:800;color:var(--accent)" id="dbGreeting">안녕하세요</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px" id="dbProfileSub"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="switchTab('income')">소득비교 →</button>
+        <button class="btn btn-secondary" onclick="switchTab('guide')">사용법</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 핵심 지표 카드 -->
+  <div class="summary-cards" id="dbMetrics"></div>
+
+  <div class="grid-2">
+    <!-- 좌: 종합 진단 -->
+    <div>
+      <div class="card">
+        <h3 style="font-size:16px">📋 종합 진단 리포트</h3>
+        <div id="dbDiagnosis"></div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:16px">🎯 추천 액션 플랜</h3>
+        <div id="dbActionPlan"></div>
+      </div>
+    </div>
+
+    <!-- 우: 핵심 차트 + 빠른 링크 -->
+    <div>
+      <div class="card">
+        <h3>누적소득 미니 차트</h3>
+        <div class="chart-container" style="height:260px"><canvas id="dbMiniChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>💡 이 시뮬레이터로 할 수 있는 것</h3>
+        <div id="dbQuickLinks"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ===== 탭1: 소득비교 ===== -->
+<div id="tab-income" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>기본 정보 <span class="help-icon">?<span class="help-tooltip"><strong>출생년도</strong>: 나이 계산 및 연금 수령 시점에 사용<br><strong>퇴직 나이</strong>: 이 나이에 소득이 0이 됩니다<br><strong>기대수명</strong>: 퇴직 후 연금/생활비 계산 범위<br>공무원/군인은 퇴직 후 연금(월 200~300만)이 반영됩니다.</span></span></h3>
+        <div class="range-row"><label>출생년도</label>
+          <input type="number" id="birthYear" value="1997" min="1970" max="2005" style="width:90px" onchange="onGlobalChange()">
+          <span class="val" id="birthYearAge" style="min-width:50px">29세</span>
+        </div>
+        <div class="range-row"><label>IT 첫취업</label>
+          <input type="number" id="itStartYear" value="2027" min="2025" max="2035" style="width:90px" onchange="onGlobalChange()">
+        </div>
+        <div class="range-row"><label>퇴직 나이</label>
+          <input type="range" id="retireAge" min="40" max="70" step="1" value="60" oninput="onGlobalChange()">
+          <span class="val" id="retireAgeVal">60세</span>
+        </div>
+        <div class="range-row"><label>기대수명</label>
+          <input type="range" id="lifeExpect" min="70" max="100" step="1" value="85" oninput="onGlobalChange()">
+          <span class="val" id="lifeExpectVal">85세</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>IT 초봉 설정</h3>
+        <div class="range-row">
+          <input type="range" id="itSalary" min="2000" max="8000" step="100" value="3500" oninput="onGlobalChange()">
+          <span class="val" id="itSalaryVal">3,500만</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>비교 직종</h3>
+        <div class="check-group" id="careerChecks"></div>
+        <div style="margin-top:10px">
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--muted)">
+            <input type="checkbox" id="inflationToggle" onchange="onGlobalChange()" style="accent-color:var(--accent)"> 인플레 반영 (2.5%) <span class="help-icon">?<span class="help-tooltip">모든 연봉/누적소득을 <strong>현재 화폐가치(실질)</strong>로 환산합니다.<br>인플레이션 2.5%를 가정하여 미래 금액을 현재 가치로 할인합니다.</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <h3>IT 성장률 커스텀 <span class="help-icon">?<span class="help-tooltip">IT 개발자의 연차별 연봉 인상률을 직접 조정합니다.<br><strong>이직 점프</strong>: 3년차/6년차 이직 시 연봉 점프율<br><strong>인상률</strong>: 같은 회사에서의 연간 인상률<br>이직 안 하면 점프를 0%로 설정하세요.</span></span></h3>
+        <div id="growthControls"></div>
+      </div>
+      <div class="card">
+        <h3>결과 요약</h3>
+        <div id="incomeSummary"></div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="downloadCSV()">CSV 다운로드</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <h3>누적소득 비교</h3>
+          <span class="help-icon">?<span class="help-tooltip">각 직종의 <strong>세전 연봉 누적합</strong>을 연도별로 비교합니다.<br>IT 초봉 슬라이더를 움직이면 실시간 갱신됩니다.<br>선이 교차하는 지점이 <strong>역전 시점</strong>입니다.</span></span>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('cumul','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('cumul','table',this)">표</button>
+          </div>
+        </div>
+        <div id="cumul-chart"><div class="chart-container"><canvas id="cumulChart"></canvas></div></div>
+        <div id="cumul-table" style="display:none;overflow-x:auto"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>연봉 비교</h3>
+          <span class="help-icon">?<span class="help-tooltip">각 직종의 <strong>해당 연도 연봉</strong>을 비교합니다.<br>IT는 이직 시점(3/6년차)에 점프가 발생합니다.<br>공무원은 호봉+승진에 따라 완만하게 상승합니다.</span></span>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('salary','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('salary','table',this)">표</button>
+          </div>
+        </div>
+        <div id="salary-chart"><div class="chart-container"><canvas id="salaryChart"></canvas></div></div>
+        <div id="salary-table" style="display:none;overflow-x:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== IT 연봉 데이터 ===== -->
+<div id="tab-itdata" class="tab-content">
+<div class="container">
+  <div class="summary-cards" id="itdataSummary">
+    <div class="summary-card"><div class="label">IT 개발자 평균</div><div class="value" style="color:var(--accent)">4,288만</div><div class="sub">Jumpit/Saramin 2025</div></div>
+    <div class="summary-card"><div class="label">IT 신입 평균</div><div class="value">3,243만</div><div class="sub">전체 시장 기준</div></div>
+    <div class="summary-card"><div class="label">전년비 인상률</div><div class="value" style="color:var(--green)">+4.7%</div><div class="sub">KOSA 2026 공표</div></div>
+    <div class="summary-card"><div class="label">상위 10%</div><div class="value" style="color:var(--yellow)">8,600만+</div><div class="sub">국세청 기준 전체근로자</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>KOSA 공식 직무별 연봉 (2026년 적용) <span class="help-icon">?<span class="help-tooltip">한국인공지능·소프트웨어산업협회(KOSA)가 매년 공표하는 <strong>SW기술자 임금실태조사</strong> 결과입니다.<br>기본급+수당+상여금+퇴직금+4대보험 포함 금액이므로 실수령보다 20~30% 높습니다.</span></span></h3>
+        <div style="overflow-x:auto" id="itKosaTable"></div>
+      </div>
+      <div class="card">
+        <h3>기업규모별 연차 연봉 <span class="help-icon">?<span class="help-tooltip">기업 규모에 따라 같은 경력이라도 연봉 차이가 큽니다.<br>출처: KOSA, 고용노동부, 통계청 교차분석</span></span></h3>
+        <div style="overflow-x:auto" id="itSizeTable"></div>
+      </div>
+      <div class="card">
+        <h3>IT 분야별 연봉 비교 <span class="help-icon">?<span class="help-tooltip">Jumpit/Saramin 2025 Report (1만명+ 표본) 기준.<br>블록체인/AI 분야가 프리미엄, 웹개발이 가장 낮은 경향.</span></span></h3>
+        <div style="overflow-x:auto" id="itSpecTable"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <h3>직무별 연봉 비교 차트</h3>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('itJob','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('itJob','table',this)">표</button>
+          </div>
+        </div>
+        <div id="itJob-chart"><div class="chart-container"><canvas id="itJobChart"></canvas></div></div>
+        <div id="itJob-table" style="display:none;overflow-x:auto"></div>
+      </div>
+      <div class="card">
+        <h3>연차별 연봉 분포 (퍼센타일)</h3>
+        <div class="chart-container"><canvas id="itPercChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>연령별 IT vs 전체 근로자</h3>
+        <div class="chart-container"><canvas id="itAgeChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="font-size:11px;color:var(--muted)">
+    <strong>데이터 출처:</strong>
+    KOSA 한국인공지능·소프트웨어산업협회 (SW기술자 임금실태조사 2025/2026) |
+    고용노동부 (고용형태별근로실태조사 2024, 임금직무정보시스템) |
+    국세청 TASIS (근로소득 백분위 2024) |
+    통계청 KOSIS (연령별 임금 2024)
+  </div>
+</div>
+</div>
+
+<!-- ===== 실수령액 계산기 ===== -->
+<div id="tab-takehome" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>연봉 입력 <span class="help-icon">?<span class="help-tooltip">세전 연봉을 입력하면 <strong>4대보험 + 소득세 + 지방소득세</strong>를 자동 공제하여 실수령액을 계산합니다.<br>2026년 개정 요율 반영 (국민연금 4.75%).<br>부양가족 수에 따라 소득세가 달라집니다.</span></span></h3>
+        <div class="range-row"><label>세전 연봉</label><input type="range" id="thSalary" min="2000" max="12000" step="100" value="3500" oninput="updateTakeHome()"><span class="val" id="thSalaryVal">3,500만</span></div>
+        <div class="range-row"><label>비과세액(월)</label><input type="range" id="thTaxFree" min="0" max="30" step="1" value="10" oninput="updateTakeHome()"><span class="val" id="thTaxFreeVal">10만</span></div>
+        <div class="range-row"><label>부양가족 수</label><input type="range" id="thDependents" min="1" max="8" step="1" value="1" oninput="updateTakeHome()"><span class="val" id="thDependentsVal">1명</span></div>
+      </div>
+      <div class="card">
+        <h3>공제 내역 (월)</h3>
+        <div id="thBreakdown"></div>
+      </div>
+      <div class="card">
+        <h3>연봉 구간별 실수령액 (표)</h3>
+        <div style="overflow-x:auto" id="thTable"></div>
+      </div>
+    </div>
+    <div>
+      <div class="summary-cards" id="thSummary"></div>
+      <div class="card">
+        <div class="card-header">
+          <h3>연봉별 실수령액/공제율</h3>
+          <span class="help-icon">?<span class="help-tooltip">연봉이 올라갈수록 <strong>세금 비율이 높아져</strong> 실수령 비율이 낮아집니다.<br>빨간 선 = 공제 비율 (우축)<br>초록 바 = 실수령액 (좌축)</span></span>
+        </div>
+        <div class="chart-container"><canvas id="thChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>연봉 구성 (세전 vs 세후)</h3>
+        </div>
+        <div class="chart-container"><canvas id="thPieChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 생활비 시뮬레이션 ===== -->
+<div id="tab-living" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>월 고정 지출 설정 <span class="help-icon">?<span class="help-tooltip">월 실수령액에서 <strong>고정 지출을 차감</strong>하여 실제 저축 가능 금액을 산출합니다.<br>1인가구 서울 평균 생활비 약 180~220만원 기준.</span></span></h3>
+        <div class="range-row"><label>월세/대출</label><input type="range" id="lvRent" min="0" max="150" step="5" value="50" oninput="updateLivingTab()"><span class="val" id="lvRentVal">50만</span></div>
+        <div class="range-row"><label>식비</label><input type="range" id="lvFood" min="10" max="100" step="5" value="40" oninput="updateLivingTab()"><span class="val" id="lvFoodVal">40만</span></div>
+        <div class="range-row"><label>교통비</label><input type="range" id="lvTransport" min="0" max="50" step="5" value="10" oninput="updateLivingTab()"><span class="val" id="lvTransportVal">10만</span></div>
+        <div class="range-row"><label>통신비</label><input type="range" id="lvPhone" min="0" max="20" step="1" value="7" oninput="updateLivingTab()"><span class="val" id="lvPhoneVal">7만</span></div>
+        <div class="range-row"><label>보험/연금</label><input type="range" id="lvInsurance" min="0" max="50" step="5" value="10" oninput="updateLivingTab()"><span class="val" id="lvInsuranceVal">10만</span></div>
+        <div class="range-row"><label>기타(여가등)</label><input type="range" id="lvEtc" min="0" max="100" step="5" value="30" oninput="updateLivingTab()"><span class="val" id="lvEtcVal">30만</span></div>
+      </div>
+      <div class="card">
+        <h3>프리셋</h3>
+        <div class="btn-group" style="flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="applyLivingPreset('frugal')">🪙 절약형</button>
+          <button class="btn btn-secondary" onclick="applyLivingPreset('normal')">🏠 보통</button>
+          <button class="btn btn-secondary" onclick="applyLivingPreset('comfort')">🛋 여유형</button>
+          <button class="btn btn-secondary" onclick="applyLivingPreset('city')">🏙 서울1인</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>연차별 저축 가능액 (표)</h3>
+        <div style="overflow-x:auto" id="lvTable"></div>
+      </div>
+    </div>
+    <div>
+      <div class="summary-cards" id="lvSummary"></div>
+      <div class="card">
+        <div class="card-header"><h3>월급 구성 (차트)</h3><span class="help-icon">?<span class="help-tooltip">월 실수령액이 세금/생활비/저축으로 어떻게 나뉘는지 보여줍니다.</span></span></div>
+        <div class="chart-container"><canvas id="lvPieChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>연차별 저축 가능액 추이</h3></div>
+        <div class="chart-container"><canvas id="lvChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 탭2: 목표설정 ===== -->
+<div id="tab-goal" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>목표 설정</h3>
+        <div class="range-row">
+          <label>목표 누적소득</label>
+          <input type="range" id="goalAmount" min="5" max="50" step="1" value="20" oninput="updateGoalTab()">
+          <span class="val" id="goalAmountVal">20억</span>
+        </div>
+        <div class="range-row">
+          <label>달성 목표 나이</label>
+          <input type="range" id="goalAge" min="35" max="65" step="1" value="50" oninput="updateGoalTab()">
+          <span class="val" id="goalAgeVal">50세</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>역산 결과: 필요 초봉</h3>
+        <div id="goalReverseResult"></div>
+      </div>
+      <div class="card">
+        <h3>목표 달성 판정</h3>
+        <div id="goalJudgment"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <h3>목표선 vs 실제 궤적</h3>
+          <span class="help-icon">?<span class="help-tooltip"><strong>노란 점선</strong> = 목표 궤적 (가속 곡선)<br><strong>빨간 실선</strong> = 현재 초봉 기준 IT 누적소득<br>빨간선이 노란선 위에 있으면 목표 초과 달성입니다.</span></span>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('goal','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('goal','table',this)">표</button>
+          </div>
+        </div>
+        <div id="goal-chart"><div class="chart-container"><canvas id="goalChart"></canvas></div></div>
+        <div id="goal-table" style="display:none;overflow-x:auto" ></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>초봉별 달성 가능성</h3>
+          <span class="help-icon">?<span class="help-tooltip">초봉 2,500만~7,000만 구간별로 <strong>목표 달성률(%)</strong>을 표시합니다.<br>초록색 바 = 100% 이상 (달성 가능)<br>빨간색 바 = 100% 미만 (미달)</span></span>
+        </div>
+        <div class="chart-container"><canvas id="goalHeatmap"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 탭3: 따라잡기 ===== -->
+<div id="tab-catchup" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>추월 대상 선택</h3>
+        <div class="check-group" id="catchupTarget"></div>
+      </div>
+      <div class="card">
+        <h3>추월 목표 연도</h3>
+        <div class="range-row">
+          <input type="range" id="catchupYear" min="2035" max="2060" step="1" value="2045" oninput="updateCatchupTab()">
+          <span class="val" id="catchupYearVal">2045년</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>역산: 필요 조건</h3>
+        <div id="catchupResult"></div>
+      </div>
+      <div class="card">
+        <h3>실행 계획</h3>
+        <div id="catchupPlan"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <h3>추월 시뮬레이션</h3>
+          <span class="help-icon">?<span class="help-tooltip"><strong>채워진 영역</strong> = 추월 대상의 누적소득<br><strong>빨간 점선</strong> = 현재 IT 궤적<br><strong>초록 점선</strong> = 목표 연도까지 추월에 필요한 초봉 궤적<br>빨간선이 채워진 영역 위로 올라가면 추월 성공!</span></span>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('catchup','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('catchup','table',this)">표</button>
+          </div>
+        </div>
+        <div id="catchup-chart"><div class="chart-container"><canvas id="catchupChart"></canvas></div></div>
+        <div id="catchup-table" style="display:none;overflow-x:auto"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>연봉 격차 추이</h3>
+          <span class="help-icon">?<span class="help-tooltip"><strong>0 기준선 위</strong> = IT가 앞선 구간 (초록)<br><strong>0 기준선 아래</strong> = 대상이 앞선 구간 (빨강)<br>격차가 점차 줄어들면서 0을 넘는 시점이 역전 시점입니다.</span></span>
+        </div>
+        <div class="chart-container"><canvas id="gapChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 탭4: 마일스톤 ===== -->
+<div id="tab-milestone" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>누적소득 마일스톤 타임라인</h3>
+        <div id="milestoneTimeline"></div>
+      </div>
+      <div class="card">
+        <h3>연봉 마일스톤</h3>
+        <div id="salaryMilestones"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <h3>마일스톤 달성 시점 비교</h3>
+          <span class="help-icon">?<span class="help-tooltip">각 직종이 1억/3억/5억/10억 등 <strong>마일스톤에 도달하는 데 걸린 연수</strong>를 비교합니다.<br>짧을수록 빠르게 자산을 축적한다는 의미입니다.</span></span>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('mile','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('mile','table',this)">표</button>
+          </div>
+        </div>
+        <div id="mile-chart"><div class="chart-container"><canvas id="milestoneChart"></canvas></div></div>
+        <div id="mile-table" style="display:none;overflow-x:auto"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>연봉 성장 곡선</h3>
+          <span class="help-icon">?<span class="help-tooltip">IT 개발자의 <strong>연봉 성장 곡선</strong>입니다.<br>이직 시점(3/6년차)에 점프가 발생하며,<br>후반으로 갈수록 성장률이 둔화됩니다.</span></span>
+        </div>
+        <div class="chart-container"><canvas id="mileSalaryChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 탭5: 또래비교 ===== -->
+<div id="tab-percentile" class="tab-content">
+<div class="container">
+  <div class="summary-cards" id="percentileSummary"></div>
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>연령대별 내 위치</h3>
+        <div id="percentileGauges"></div>
+      </div>
+      <div class="card">
+        <h3>연도별 퍼센타일 변화</h3>
+        <div id="percentileTable"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <h3>또래 소득 분포에서 내 위치</h3>
+          <span class="help-icon">?<span class="help-tooltip">같은 연령대 근로자들의 <strong>소득 분위별 연봉</strong>과 내 연봉을 비교합니다.<br>데이터 출처: 국세청(TASIS), 고용노동부, 통계청(KOSIS)<br>빨간 바가 내 위치입니다.</span></span>
+        </div>
+        <div class="chart-container"><canvas id="percentileChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>연도별 퍼센타일 추이</h3>
+          <span class="help-icon">?<span class="help-tooltip">시간이 지남에 따라 <strong>또래 대비 내 위치가 어떻게 변하는지</strong> 추적합니다.<br>초록선(75%) 위 = 상위 25% 이내<br>노란선(50%) = 중위<br>빠르게 상승하면 또래를 앞서가는 것입니다.</span></span>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('percTrack','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('percTrack','table',this)">표</button>
+          </div>
+        </div>
+        <div id="percTrack-chart"><div class="chart-container"><canvas id="percTrackChart"></canvas></div></div>
+        <div id="percTrack-table" style="display:none;overflow-x:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 탭6: 시나리오 ===== -->
+<div id="tab-scenario" class="tab-content">
+<div class="container">
+  <div class="card">
+    <h3>IT 커리어 시나리오 비교</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">서로 다른 초봉/성장률로 여러 커리어 패스를 동시에 비교합니다.</p>
+    <div id="scenarioInputs"></div>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="addScenario()">+ 시나리오 추가</button>
+      <button class="btn btn-secondary" onclick="loadPresetScenarios()">프리셋 불러오기</button>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <h3>시나리오 누적소득</h3>
+        <span class="help-icon">?<span class="help-tooltip">위에서 만든 <strong>여러 IT 커리어 시나리오</strong>의 누적소득을 비교합니다.<br>파란 점선 = 경찰 기준선<br>각 시나리오의 초봉/이직률/후반 성장률에 따라 궤적이 달라집니다.</span></span>
+        <div class="view-toggle">
+          <button class="view-toggle-btn active" onclick="toggleView('scenCumul','chart',this)">차트</button>
+          <button class="view-toggle-btn" onclick="toggleView('scenCumul','table',this)">표</button>
+        </div>
+      </div>
+      <div id="scenCumul-chart"><div class="chart-container"><canvas id="scenCumulChart"></canvas></div></div>
+      <div id="scenCumul-table" style="display:none;overflow-x:auto"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h3>시나리오 연봉</h3>
+        <span class="help-icon">?<span class="help-tooltip">각 시나리오별 <strong>연도별 연봉</strong> 추이입니다.<br>이직 점프율이 높을수록 계단 모양이 뚜렷합니다.</span></span>
+      </div>
+      <div class="chart-container"><canvas id="scenSalaryChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>시나리오 결과 비교</h3>
+    <div id="scenarioResult"></div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 이직 타이밍 시뮬레이터 ===== -->
+<div id="tab-jobhop" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>이직 전략 설정 <span class="help-icon">?<span class="help-tooltip">이직 시기와 횟수에 따라 생애소득이 크게 달라집니다.<br><strong>이직 점프율</strong>: 이직 시 연봉 인상률<br><strong>재직 인상률</strong>: 같은 회사에서의 연간 인상률<br>이직을 안 하면 성장이 둔화되고, 너무 자주 하면 신뢰를 잃습니다.</span></span></h3>
+        <div class="range-row"><label>이직 주기</label><input type="range" id="jhCycle" min="1" max="10" step="1" value="3" oninput="updateJobHopTab()"><span class="val" id="jhCycleVal">3년</span></div>
+        <div class="range-row"><label>이직 점프율</label><input type="range" id="jhJump" min="5" max="40" step="1" value="15" oninput="updateJobHopTab()"><span class="val" id="jhJumpVal">15%</span></div>
+        <div class="range-row"><label>재직 인상률</label><input type="range" id="jhStay" min="1" max="15" step="1" value="5" oninput="updateJobHopTab()"><span class="val" id="jhStayVal">5%</span></div>
+        <div class="range-row"><label>이직 횟수 제한</label><input type="range" id="jhMax" min="1" max="10" step="1" value="5" oninput="updateJobHopTab()"><span class="val" id="jhMaxVal">5회</span></div>
+      </div>
+      <div class="card">
+        <h3>이직 전략 프리셋</h3>
+        <div class="btn-group" style="flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="applyJHPreset('loyal')">🏢 한우물</button>
+          <button class="btn btn-secondary" onclick="applyJHPreset('normal')">🔄 일반</button>
+          <button class="btn btn-secondary" onclick="applyJHPreset('aggressive')">🚀 적극</button>
+          <button class="btn btn-secondary" onclick="applyJHPreset('mercenary')">💰 용병</button>
+        </div>
+      </div>
+      <div class="card"><h3>전략별 비교 (표)</h3><div style="overflow-x:auto" id="jhTable"></div></div>
+    </div>
+    <div>
+      <div class="summary-cards" id="jhSummary"></div>
+      <div class="card"><div class="card-header"><h3>이직 전략별 연봉 추이</h3></div><div class="chart-container"><canvas id="jhSalaryChart"></canvas></div></div>
+      <div class="card"><div class="card-header"><h3>이직 전략별 누적소득</h3></div><div class="chart-container"><canvas id="jhCumulChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== FIRE 은퇴 시뮬레이터 ===== -->
+<div id="tab-fire" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>FIRE 목표 설정 <span class="help-icon">?<span class="help-tooltip"><strong>FIRE</strong> = Financial Independence, Retire Early (경제적 자유, 조기은퇴)<br>목표 월생활비 x 300 = 필요 자산 (4% 룰 기반)<br>월 300만원 생활 → 약 9억 필요<br>투자수익률이 높을수록, 저축률이 높을수록 빨리 달성됩니다.</span></span></h3>
+        <div class="range-row"><label>월 목표 생활비</label><input type="range" id="fireMonthly" min="100" max="800" step="10" value="300" oninput="updateFireTab()"><span class="val" id="fireMonthlyVal">300만</span></div>
+        <div class="range-row"><label>저축률(%)</label><input type="range" id="fireSaveRate" min="10" max="80" step="5" value="40" oninput="updateFireTab()"><span class="val" id="fireSaveRateVal">40%</span></div>
+        <div class="range-row"><label>투자수익률(%)</label><input type="range" id="fireReturn" min="2" max="15" step="0.5" value="7" oninput="updateFireTab()"><span class="val" id="fireReturnVal">7%</span></div>
+        <div class="range-row"><label>인플레이션(%)</label><input type="range" id="fireInflation" min="0" max="6" step="0.5" value="2.5" oninput="updateFireTab()"><span class="val" id="fireInflationVal">2.5%</span></div>
+        <div class="range-row"><label>현재 자산</label><input type="range" id="fireCurrentAsset" min="0" max="30000" step="500" value="0" oninput="updateFireTab()"><span class="val" id="fireCurrentAssetVal">0만</span></div>
+      </div>
+      <div class="card"><h3>FIRE 달성 타임라인 (표)</h3><div style="overflow-x:auto" id="fireTable"></div></div>
+    </div>
+    <div>
+      <div class="summary-cards" id="fireSummary"></div>
+      <div class="card"><div class="card-header"><h3>FIRE 달성 궤적</h3><span class="help-icon">?<span class="help-tooltip"><strong>초록 영역</strong> = 자산 성장 곡선<br><strong>빨간 점선</strong> = FIRE 목표 금액 (4% 룰)<br>초록선이 빨간선을 넘는 시점 = <strong>은퇴 가능!</strong></span></span></div><div class="chart-container"><canvas id="fireChart"></canvas></div></div>
+      <div class="card"><div class="card-header"><h3>저축률별 FIRE 달성 연수</h3></div><div class="chart-container"><canvas id="fireRateChart"></canvas></div></div>
+      <div class="card">
+        <div class="card-header">
+          <h3>몬테카를로 시뮬레이션</h3>
+          <span class="help-icon">?<span class="help-tooltip"><strong>몬테카를로 시뮬레이션</strong>은 수익률 변동성을 반영한 확률적 분석입니다.<br>100번의 시뮬레이션을 실행하여 각각 랜덤한 수익률 변동(-50%~+50%)을 적용합니다.<br>FIRE 목표를 달성하는 시뮬레이션의 비율이 <strong>성공 확률</strong>입니다.</span></span>
+        </div>
+        <div class="summary-cards" id="mcSummary"></div>
+        <div class="chart-container"><canvas id="mcChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 탭7: 재테크 ===== -->
+<div id="tab-invest" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>월 저축/투자 설정</h3>
+        <div class="range-row"><label>월 저축액</label><input type="range" id="monthlySave" min="0" max="500" step="10" value="100" oninput="updateInvestChart()"><span class="val" id="monthlySaveVal">100만</span></div>
+        <div class="range-row"><label>저축 증가율</label><input type="range" id="saveGrowth" min="0" max="15" step="1" value="5" oninput="updateInvestChart()"><span class="val" id="saveGrowthVal">5%/년</span></div>
+      </div>
+      <div class="card">
+        <h3>투자 포트폴리오</h3>
+        <div class="range-row"><label>주식 비중</label><input type="range" id="stockRatio" min="0" max="100" step="5" value="60" oninput="updateInvestChart()"><span class="val" id="stockRatioVal">60%</span></div>
+        <div class="range-row"><label>채권 비중</label><input type="range" id="bondRatio" min="0" max="100" step="5" value="20" oninput="updateInvestChart()"><span class="val" id="bondRatioVal">20%</span></div>
+        <div class="range-row"><label>예적금 비중</label><span class="val" id="cashRatioVal">20%</span></div>
+        <div class="range-row"><label>주식 수익률</label><input type="range" id="stockReturn" min="0" max="20" step="0.5" value="8" oninput="updateInvestChart()"><span class="val" id="stockReturnVal">8%</span></div>
+        <div class="range-row"><label>채권 수익률</label><input type="range" id="bondReturn" min="0" max="10" step="0.5" value="4" oninput="updateInvestChart()"><span class="val" id="bondReturnVal">4%</span></div>
+        <div class="range-row"><label>예적금 이율</label><input type="range" id="cashReturn" min="0" max="6" step="0.5" value="2.5" oninput="updateInvestChart()"><span class="val" id="cashReturnVal">2.5%</span></div>
+      </div>
+      <div class="card">
+        <h3>프리셋</h3>
+        <div class="btn-group" style="flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="applyPreset('conservative')">🛡 보수적</button>
+          <button class="btn btn-secondary" onclick="applyPreset('balanced')">⚖️ 균형</button>
+          <button class="btn btn-secondary" onclick="applyPreset('aggressive')">🔥 공격적</button>
+          <button class="btn btn-secondary" onclick="applyPreset('index')">📊 인덱스</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="summary-cards" id="investSummary"></div>
+      <div class="card" id="investSnowballCard" style="border-color:var(--purple)">
+        <h3 style="color:var(--purple)">💎 이자가 원금을 넘는 시점 <span class="help-icon">?<span class="help-tooltip">복리 효과로 <strong>투자 수익이 원금을 초과</strong>하는 시점입니다.<br>이 시점 이후 자산은 가속도적으로 증가합니다.</span></span></h3>
+        <div id="investSnowballInfo"></div>
+      </div>
+      <div class="card"><h3>자산 성장 추이</h3><div class="chart-container"><canvas id="investChart"></canvas></div></div>
+      <div class="card"><h3>자산 구성 변화</h3><div class="chart-container"><canvas id="assetChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 탭8: 종합자산 ===== -->
+<div id="tab-total" class="tab-content">
+<div class="container">
+  <div class="summary-cards" id="totalSummary"></div>
+  <div class="grid-2">
+    <div class="card"><h3>직종별 총자산 비교 (소득+투자)</h3><div class="chart-container"><canvas id="totalChart"></canvas></div></div>
+    <div class="card"><h3>순자산 구성 (소득 vs 투자수익)</h3><div class="chart-container"><canvas id="breakdownChart"></canvas></div></div>
+  </div>
+  <div class="card"><h3>연도별 상세 비교</h3><div style="overflow-x:auto" id="totalTable"></div></div>
+</div>
+</div>
+
+<!-- ===== 부동산 시뮬레이터 ===== -->
+<div id="tab-realestate" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>주거비용 비교 설정 <span class="help-icon">?<span class="help-tooltip">전세/월세/매매 3가지 주거 방식의 <strong>총 비용</strong>을 비교합니다.<br>매매 시 대출 이자, 취득세 포함.<br>전세는 보증금 기회비용(투자수익률) 반영.<br>월세는 보증금+월세 합산.</span></span></h3>
+        <div class="range-row"><label>매매가</label><input type="range" id="rePrice" min="10000" max="150000" step="1000" value="50000" oninput="updateRealEstateTab()"><span class="val" id="rePriceVal">5.0억</span></div>
+        <div class="range-row"><label>전세가</label><input type="range" id="reJeonse" min="5000" max="100000" step="1000" value="30000" oninput="updateRealEstateTab()"><span class="val" id="reJeonseVal">3.0억</span></div>
+        <div class="range-row"><label>월세 보증금</label><input type="range" id="reDeposit" min="0" max="30000" step="500" value="5000" oninput="updateRealEstateTab()"><span class="val" id="reDepositVal">5,000만</span></div>
+        <div class="range-row"><label>월세(만)</label><input type="range" id="reMonthlyRent" min="20" max="200" step="5" value="80" oninput="updateRealEstateTab()"><span class="val" id="reMonthlyRentVal">80만</span></div>
+        <div class="range-row"><label>대출 금리(%)</label><input type="range" id="reLoanRate" min="2" max="8" step="0.1" value="3.5" oninput="updateRealEstateTab()"><span class="val" id="reLoanRateVal">3.5%</span></div>
+        <div class="range-row"><label>LTV(%) <span class="help-icon">?<span class="help-tooltip"><strong>LTV</strong> = Loan to Value. 주택담보대출비율.<br>주택 가격 대비 대출 가능 비율.<br>규제지역 40~50%, 비규제 70%.</span></span></label><input type="range" id="reLTV" min="10" max="80" step="5" value="50" oninput="updateRealEstateTab()"><span class="val" id="reLTVVal">50%</span></div>
+        <div class="range-row"><label>기회비용 수익률(%)</label><input type="range" id="reOppCost" min="2" max="10" step="0.5" value="5" oninput="updateRealEstateTab()"><span class="val" id="reOppCostVal">5%</span></div>
+      </div>
+      <div class="card">
+        <h3>비교 기간별 총 비용 (표)</h3>
+        <div style="overflow-x:auto" id="reCompareTable"></div>
+      </div>
+    </div>
+    <div>
+      <div class="summary-cards" id="reSummary"></div>
+      <div class="card">
+        <div class="card-header">
+          <h3>전세 vs 월세 vs 매매 비용 추이</h3>
+          <span class="help-icon">?<span class="help-tooltip">각 주거방식의 <strong>누적 총비용</strong>을 연도별로 비교합니다.<br>매매 = 취득세+대출이자+관리비-자산가치<br>전세 = 기회비용(투자했으면 벌었을 금액)<br>월세 = 보증금 기회비용+월세 누적</span></span>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('reCompare','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('reCompare','table',this)">표</button>
+          </div>
+        </div>
+        <div id="reCompare-chart"><div class="chart-container"><canvas id="reCompareChart"></canvas></div></div>
+        <div id="reCompare-table" style="display:none;overflow-x:auto" id="reCompareTableAlt"></div>
+      </div>
+      <div class="card">
+        <h3>내집마련 로드맵 <span class="help-icon">?<span class="help-tooltip">목표 주택가격, 현재 저축, 월 저축액을 기반으로 <strong>내집마련 소요 기간</strong>을 계산합니다.<br><strong>DTI</strong>: 총부채상환비율(소득 대비 연간 대출상환액)<br><strong>DSR</strong>: 총부채원리금상환비율(모든 대출 포함)<br><strong>LTV</strong>: 담보인정비율(주택가격 대비 대출 한도)</span></span></h3>
+        <div class="range-row"><label>목표 주택가격</label><input type="range" id="reTargetPrice" min="10000" max="150000" step="1000" value="50000" oninput="updateRoadmap()"><span class="val" id="reTargetPriceVal">5.0억</span></div>
+        <div class="range-row"><label>현재 저축(만)</label><input type="range" id="reCurrentSave" min="0" max="50000" step="500" value="3000" oninput="updateRoadmap()"><span class="val" id="reCurrentSaveVal">3,000만</span></div>
+        <div class="range-row"><label>월 저축(만)</label><input type="range" id="reMonthlySave" min="10" max="500" step="10" value="100" oninput="updateRoadmap()"><span class="val" id="reMonthlySaveVal">100만</span></div>
+        <div id="roadmapResult"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 복리효과 시뮬레이터 ===== -->
+<div id="tab-compound" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>복리 투자 설정 <span class="help-icon">?<span class="help-tooltip"><strong>복리</strong>란 이자에 이자가 붙는 효과입니다.<br>시간이 길어질수록 기하급수적으로 자산이 증가합니다.<br>"이자가 원금을 넘는 시점"이 복리의 마법이 시작되는 순간입니다.</span></span></h3>
+        <div class="range-row"><label>월 투자금(만)</label><input type="range" id="cpMonthly" min="10" max="500" step="10" value="100" oninput="updateCompoundTab()"><span class="val" id="cpMonthlyVal">100만</span></div>
+        <div class="range-row"><label>연수익률(%)</label><input type="range" id="cpReturn" min="1" max="20" step="0.5" value="8" oninput="updateCompoundTab()"><span class="val" id="cpReturnVal">8%</span></div>
+        <div class="range-row"><label>투자기간(년)</label><input type="range" id="cpYears" min="5" max="40" step="1" value="30" oninput="updateCompoundTab()"><span class="val" id="cpYearsVal">30년</span></div>
+      </div>
+      <div class="card">
+        <h3>프리셋</h3>
+        <div class="btn-group" style="flex-wrap:wrap">
+          <button class="btn btn-secondary" onclick="applyCPPreset(3)">🏦 적금 3%</button>
+          <button class="btn btn-secondary" onclick="applyCPPreset(5)">📄 채권 5%</button>
+          <button class="btn btn-secondary" onclick="applyCPPreset(8)">📊 S&P500 8%</button>
+          <button class="btn btn-secondary" onclick="applyCPPreset(12)">🔥 공격투자 12%</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>연도별 상세 내역 (표)</h3>
+        <div style="overflow-x:auto" id="cpTable"></div>
+      </div>
+    </div>
+    <div>
+      <div class="summary-cards" id="cpSummary"></div>
+      <div class="card">
+        <div class="card-header">
+          <h3>원금 vs 수익 (복리 스노우볼)</h3>
+          <span class="help-icon">?<span class="help-tooltip">초록 영역 = 원금 (직접 투자한 금액)<br>파랑 영역 = 복리 수익 (이자+이자의 이자)<br><strong>파랑이 초록을 넘는 시점</strong>이 복리 마법이 시작되는 순간입니다!</span></span>
+          <div class="view-toggle">
+            <button class="view-toggle-btn active" onclick="toggleView('cpGrowth','chart',this)">차트</button>
+            <button class="view-toggle-btn" onclick="toggleView('cpGrowth','table',this)">표</button>
+          </div>
+        </div>
+        <div id="cpGrowth-chart"><div class="chart-container"><canvas id="cpGrowthChart"></canvas></div></div>
+        <div id="cpGrowth-table" style="display:none;overflow-x:auto"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>수익률별 최종 자산 비교</h3>
+          <span class="help-icon">?<span class="help-tooltip">동일 투자금, 동일 기간에서 <strong>수익률 차이</strong>가 최종 자산에 미치는 영향을 보여줍니다.<br>수익률 1~2% 차이가 수십년 후 수억 차이를 만듭니다.</span></span>
+        </div>
+        <div class="chart-container"><canvas id="cpCompareChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 연말정산 시뮬레이터 ===== -->
+<div id="tab-yearend" class="tab-content">
+<div class="container">
+  <div class="grid-2">
+    <div>
+      <div class="card">
+        <h3>기본 정보 <span class="help-icon">?<span class="help-tooltip"><strong>연말정산</strong>은 1년간 납부한 세금과 실제 세금을 비교하여 차액을 환급/추징하는 제도입니다.<br>각 공제항목에 맞게 지출액을 입력하면 예상 환급액을 계산합니다.</span></span></h3>
+        <div class="range-row"><label>총 급여(만)</label><input type="range" id="yeGross" min="2000" max="12000" step="100" value="4000" oninput="updateYearEndTab()"><span class="val" id="yeGrossVal">4,000만</span></div>
+      </div>
+      <div class="card">
+        <h3>카드/현금 사용액 <span class="help-icon">?<span class="help-tooltip"><strong>신용카드</strong>: 공제율 15%<br><strong>체크카드/현금영수증</strong>: 공제율 30%<br>총급여의 25% 초과분부터 공제 시작.<br>공제 한도: 총급여 7천만 이하 → 300만, 초과 → 250만.</span></span></h3>
+        <div class="range-row"><label>신용카드(만)</label><input type="range" id="yeCredit" min="0" max="5000" step="50" value="1200" oninput="updateYearEndTab()"><span class="val" id="yeCreditVal">1,200만</span></div>
+        <div class="range-row"><label>체크카드(만)</label><input type="range" id="yeDebit" min="0" max="3000" step="50" value="600" oninput="updateYearEndTab()"><span class="val" id="yeDebitVal">600만</span></div>
+        <div class="range-row"><label>현금영수증(만)</label><input type="range" id="yeCash" min="0" max="2000" step="50" value="200" oninput="updateYearEndTab()"><span class="val" id="yeCashVal">200만</span></div>
+      </div>
+      <div class="card">
+        <h3>특별공제 <span class="help-icon">?<span class="help-tooltip"><strong>의료비</strong>: 총급여 3% 초과분의 15% 공제 (한도 700만)<br><strong>교육비</strong>: 본인 전액, 자녀 1인당 300만 한도 (대학 900만)<br><strong>기부금</strong>: 법정 전액, 지정 30% (소득 10% 한도)</span></span></h3>
+        <div class="range-row"><label>의료비(만)</label><input type="range" id="yeMedical" min="0" max="2000" step="50" value="100" oninput="updateYearEndTab()"><span class="val" id="yeMedicalVal">100만</span></div>
+        <div class="range-row"><label>교육비(만)</label><input type="range" id="yeEdu" min="0" max="1500" step="50" value="0" oninput="updateYearEndTab()"><span class="val" id="yeEduVal">0만</span></div>
+        <div class="range-row"><label>기부금(만)</label><input type="range" id="yeDonation" min="0" max="1000" step="10" value="0" oninput="updateYearEndTab()"><span class="val" id="yeDonationVal">0만</span></div>
+      </div>
+      <div class="card">
+        <h3>연금/저축 공제 <span class="help-icon">?<span class="help-tooltip"><strong>주택청약</strong>: 연 납입액 40% 공제 (한도 96만, 무주택 세대주)<br><strong>연금저축</strong>: 연 400만 한도 (IRP 합산 700만)<br><strong>IRP</strong>: 연금저축 포함 700만 한도<br>공제율: 총급여 5,500만 이하 15%, 초과 12%</span></span></h3>
+        <div class="range-row"><label>주택청약(만)</label><input type="range" id="yeHousing" min="0" max="240" step="10" value="0" oninput="updateYearEndTab()"><span class="val" id="yeHousingVal">0만</span></div>
+        <div class="range-row"><label>연금저축(만)</label><input type="range" id="yePension" min="0" max="600" step="10" value="0" oninput="updateYearEndTab()"><span class="val" id="yePensionVal">0만</span></div>
+        <div class="range-row"><label>IRP(만)</label><input type="range" id="yeIRP" min="0" max="700" step="10" value="0" oninput="updateYearEndTab()"><span class="val" id="yeIRPVal">0만</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="summary-cards" id="yeSummary"></div>
+      <div class="card">
+        <h3>공제 항목별 상세 (표)</h3>
+        <div style="overflow-x:auto" id="yeDetailTable"></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>공제 구성 비율</h3>
+          <span class="help-icon">?<span class="help-tooltip">각 공제 항목이 전체 공제액에서 차지하는 비율을 보여줍니다.</span></span>
+        </div>
+        <div class="chart-container"><canvas id="yeChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>절세 팁 <span class="help-icon">?<span class="help-tooltip">현재 입력값 기반으로 추가 절세가 가능한 항목을 안내합니다.</span></span></h3>
+        <div id="yeTips"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ===== 사용법 가이드 ===== -->
+<div id="tab-guide" class="tab-content">
+<div class="container" style="max-width:900px">
+
+  <div class="card" style="border-color:var(--cyan)">
+    <h3 style="font-size:20px;color:var(--cyan)">📖 소득 & 재테크 시뮬레이터 사용법</h3>
+    <p style="color:var(--muted);font-size:13px;margin-top:8px">이 시뮬레이터는 서버 없이 브라우저에서 바로 동작합니다. 모든 계산은 클라이언트에서 수행되며, 입력 데이터는 저장되지 않습니다.</p>
+  </div>
+
+  <div class="card">
+    <h3>⚡ 기본 조작법</h3>
+    <table class="result-table">
+      <tr><td style="text-align:left;font-weight:600">슬라이더</td><td style="text-align:left">좌우로 드래그하면 모든 차트/표가 <strong>실시간 갱신</strong>됩니다</td></tr>
+      <tr><td style="text-align:left;font-weight:600">숫자 입력</td><td style="text-align:left">출생년도, IT 첫취업 연도 등은 직접 숫자를 입력합니다</td></tr>
+      <tr><td style="text-align:left;font-weight:600">체크박스</td><td style="text-align:left">비교 직종을 클릭하여 켜고 끌 수 있습니다</td></tr>
+      <tr><td style="text-align:left;font-weight:600">차트/표 토글</td><td style="text-align:left">각 차트 우측 상단의 <code>[차트] [표]</code> 버튼으로 전환</td></tr>
+      <tr><td style="text-align:left;font-weight:600">? 아이콘</td><td style="text-align:left">마우스를 올리면 해당 기능의 상세 설명이 나타납니다</td></tr>
+      <tr><td style="text-align:left;font-weight:600">프리셋 버튼</td><td style="text-align:left">미리 설정된 시나리오를 원클릭으로 적용합니다</td></tr>
+      <tr><td style="text-align:left;font-weight:600">CSV 다운로드</td><td style="text-align:left">소득비교 탭에서 연도별 데이터를 엑셀용 CSV로 내보냅니다</td></tr>
+      <tr><td style="text-align:left;font-weight:600">차트 호버</td><td style="text-align:left">차트 위에 마우스를 올리면 정확한 수치가 툴팁으로 나타납니다</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>📋 메뉴별 기능 안내</h3>
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:6px">소득 분석</div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">💰 소득비교</div>
+        <div style="font-size:13px;color:var(--muted)">IT 개발자(초봉 직접 설정)와 경찰/7급/장교/소방/9급의 누적소득을 비교합니다. 성장률 커스텀, 인플레 반영 토글 가능. 퇴직 후 공무원연금 vs 국민연금도 반영됩니다.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">💻 IT연봉 데이터</div>
+        <div style="font-size:13px;color:var(--muted)">KOSA(한국AI·SW산업협회) 공식 통계 기반. 17개 직무별 월임금, 기업규모별 연차 연봉, IT 10개 분야별(블록체인/AI/보안/DevOps 등) 주니어~시니어 연봉, 경력별 퍼센타일 분포.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">💵 실수령액</div>
+        <div style="font-size:13px;color:var(--muted)">세전 연봉에서 4대보험(국민연금/건강보험/장기요양/고용보험) + 소득세 + 지방소득세를 차감한 실수령액을 계산합니다. 2026년 최신 요율 반영. 부양가족 수에 따른 세액 공제 적용.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🏠 생활비</div>
+        <div style="font-size:13px;color:var(--muted)">월세/식비/교통/통신/보험/기타 지출을 설정하면 실제 저축 가능액을 산출합니다. 인플레이션(2.5%) 반영하여 연차별 저축 추이를 보여줍니다. 프리셋: 절약형/보통/여유형/서울1인.</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:6px">목표 & 비교</div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🎯 목표설정</div>
+        <div style="font-size:13px;color:var(--muted)">"50세까지 20억 벌겠다" 같은 목표를 설정하면, 필요한 최소 초봉을 역산합니다. 초봉별 달성 가능성 차트와 연도별 진행률 표를 제공합니다.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🏃 따라잡기</div>
+        <div style="font-size:13px;color:var(--muted)">특정 직종(예: 경찰)을 선택하고 목표 연도를 설정하면, 그때까지 추월하기 위한 필요 초봉과 구체적 실행계획을 제시합니다.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🏁 마일스톤</div>
+        <div style="font-size:13px;color:var(--muted)">누적소득 1억/3억/5억/10억/20억/30억 달성 시점을 타임라인으로 보여줍니다. 연봉 마일스톤(4000만/5000만/7000만/1억)도 추적합니다.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">📊 또래비교</div>
+        <div style="font-size:13px;color:var(--muted)">국세청/고용노동부/통계청 데이터 기반으로 같은 연령대에서 당신의 연봉이 상위 몇 %인지 게이지 바로 표시합니다. 시간에 따른 퍼센타일 변화도 추적.</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:6px">커리어 전략</div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🔀 시나리오</div>
+        <div style="font-size:13px;color:var(--muted)">여러 IT 커리어 패스를 동시에 비교합니다. 초봉/이직 점프율/후반 성장률을 각각 설정 가능. 프리셋: 중소안주/중견이직/대기업/네카라/SSAFY→삼성.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🔄 이직타이밍</div>
+        <div style="font-size:13px;color:var(--muted)">이직 주기(몇 년마다)/점프율/재직 인상률을 설정하여 이직 전략별 생애소득을 비교합니다. 프리셋: 한우물/일반/적극/용병.</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:6px">재테크 & 자산</div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🔥 FIRE 은퇴</div>
+        <div style="font-size:13px;color:var(--muted)">Financial Independence, Retire Early. 4% 룰 기반으로 조기은퇴에 필요한 자산을 계산합니다. Monte Carlo 시뮬레이션(100회)으로 달성 확률을 표시합니다.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">📈 재테크</div>
+        <div style="font-size:13px;color:var(--muted)">주식/채권/예적금 비중과 수익률을 설정하여 포트폴리오 투자 시뮬레이션을 합니다. 프리셋: 보수적/균형/공격적/인덱스.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">💎 복리효과</div>
+        <div style="font-size:13px;color:var(--muted)">매년 원금과 이자를 분리한 스택 바 차트로 복리의 스노우볼 효과를 시각화합니다. "이자가 원금을 넘는 시점"이 하이라이트됩니다.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🏡 부동산</div>
+        <div style="font-size:13px;color:var(--muted)">전세/월세/매매의 5/10/20년 총비용을 비교합니다. 내집마련 로드맵: 목표가격 설정 → 필요 기간 계산.</div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;color:var(--accent);margin-bottom:6px;border-bottom:1px solid var(--border);padding-bottom:6px">세금 & 종합</div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🧾 연말정산</div>
+        <div style="font-size:13px;color:var(--muted)">카드 사용액/의료비/교육비/기부금/주택청약/연금저축/IRP를 입력하면 예상 환급액을 계산합니다. 절세 팁도 자동 제공됩니다.</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-weight:600">🏆 종합자산</div>
+        <div style="font-size:13px;color:var(--muted)">세후 누적소득 + 투자 수익을 합산하여 직종별 총자산을 비교합니다. IT vs 공무원의 최종 자산 격차를 확인할 수 있습니다.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🔧 기본 정보 설정 (중요!)</h3>
+    <table class="result-table">
+      <tr><td style="text-align:left;font-weight:600">출생년도</td><td style="text-align:left">모든 "X세" 표시와 퇴직/연금 계산의 기준이 됩니다</td></tr>
+      <tr><td style="text-align:left;font-weight:600">IT 첫취업 연도</td><td style="text-align:left">IT 소득이 시작되는 시점. SSAFY 수료 후라면 2028 등으로 조정</td></tr>
+      <tr><td style="text-align:left;font-weight:600">퇴직 나이</td><td style="text-align:left">이 나이에 근로소득이 0이 됩니다. 퇴직 후 연금이 반영됩니다</td></tr>
+      <tr><td style="text-align:left;font-weight:600">기대수명</td><td style="text-align:left">시뮬레이션 종료 시점. 퇴직 후 연금 수령 기간에 영향</td></tr>
+    </table>
+    <div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted)">
+      <strong style="color:var(--yellow)">퇴직 후 소득 모델:</strong><br>
+      • 공무원/군인/경찰/소방 → 공무원연금 수령 (근속연수 × 월 10만, 최소 120만~최대 350만)<br>
+      • IT 개발자 → 국민연금만 (근속연수 × 월 3만, 최소 40만~최대 120만)
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>❓ 자주 묻는 질문</h3>
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px">Q. 데이터가 저장되나요?</div>
+      <div style="font-size:12px;color:var(--muted)">아니요. 모든 계산은 브라우저에서만 수행되며, 입력값은 페이지를 닫으면 사라집니다. 필요한 데이터는 CSV로 내보내세요.</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px">Q. 세금 계산이 정확한가요?</div>
+      <div style="font-size:12px;color:var(--muted)">2026년 기준 4대보험 요율과 간이세액표를 근사 적용합니다. 정확한 세액은 국세청 홈택스를 이용하세요.</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px">Q. IT 연봉 데이터는 어디서 온 건가요?</div>
+      <div style="font-size:12px;color:var(--muted)">KOSA(한국AI·SW산업협회) 공식 임금실태조사, 고용노동부 임금직무정보시스템, 국세청 TASIS, 통계청 KOSIS 등 공신력 있는 출처만 사용합니다.</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px">Q. 공무원 연금이 왜 중요한가요?</div>
+      <div style="font-size:12px;color:var(--muted)">공무원은 퇴직 후에도 월 200~350만원을 평생 수령합니다. IT 개발자의 국민연금(월 40~120만)과 비교하면 큰 차이가 있어, 생애 총소득에 큰 영향을 미칩니다.</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px">Q. FIRE의 4% 룰이 한국에서도 적용되나요?</div>
+      <div style="font-size:12px;color:var(--muted)">4% 룰은 미국 시장 기준이며, 한국에서는 보수적으로 3~3.5%를 적용하는 것이 안전합니다. Monte Carlo 시뮬레이션의 성공률을 참고하세요.</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:4px">Q. 인플레이션 반영은 어떻게 되나요?</div>
+      <div style="font-size:12px;color:var(--muted)">소득비교 탭에서 "인플레 반영" 체크 시 2.5% 인플레를 적용하여 현재 화폐가치로 환산합니다. 생활비 탭과 FIRE 탭에서도 인플레가 자동 반영됩니다.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📊 데이터 출처</h3>
+    <table class="result-table">
+      <tr><td style="text-align:left;font-weight:600">KOSA</td><td style="text-align:left">한국AI·SW산업협회 — SW기술자 임금실태조사 (2025/2026 적용)</td></tr>
+      <tr><td style="text-align:left;font-weight:600">고용노동부</td><td style="text-align:left">고용형태별근로실태조사, 임금직무정보시스템 (wage.go.kr)</td></tr>
+      <tr><td style="text-align:left;font-weight:600">국세청 TASIS</td><td style="text-align:left">근로소득 백분위(천분위) 자료 (tasis.nts.go.kr)</td></tr>
+      <tr><td style="text-align:left;font-weight:600">통계청 KOSIS</td><td style="text-align:left">연령별·산업별 임금통계 (kosis.kr)</td></tr>
+      <tr><td style="text-align:left;font-weight:600">인사혁신처</td><td style="text-align:left">공무원 봉급표 2026년 (mpm.go.kr)</td></tr>
+      <tr><td style="text-align:left;font-weight:600">워크넷</td><td style="text-align:left">직업별 임금정보 (work.go.kr)</td></tr>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<script>
+// ============================================================
+// 데이터 모델
+// ============================================================
+
+const CAREERS = {
+  police:  { name:'경찰 조기임용(03생)', start:2024, color:'#3b82f6', birth:2003, retireAge:60,
+    ranks:[[1,'순경',3700,.07],[5,'경장',5000,.05],[10,'경사',6300,.04],[16,'경위',7850,.03],[24,'경감',9900,.025],[32,'총경',11200,.02]] },
+  civil7:  { name:'7급 공무원', start:2027, color:'#a855f7', birth:1997, retireAge:60,
+    ranks:[[1,'7급',3400,.06],[7,'6급',4800,.045],[15,'5급',6500,.035],[25,'4급',8200,.025]] },
+  officer: { name:'장교(소위)', start:2027, color:'#22c55e', birth:1997, retireAge:56,
+    ranks:[[1,'소위',3300,.08],[3,'중위',4200,.06],[7,'대위',5500,.05],[14,'소령',7200,.04],[18,'중령',8800,.03],[24,'대령',10500,.025]] },
+  fire:    { name:'소방공무원', start:2027, color:'#f97316', birth:1997, retireAge:60,
+    ranks:[[1,'소방사',3600,.07],[5,'소방교',4900,.05],[10,'소방장',6200,.04],[16,'소방위',7700,.03],[24,'소방경',9700,.025],[32,'소방령',11000,.02]] },
+  civil9:  { name:'9급 공무원', start:2027, color:'#6b7280', birth:1997, retireAge:60,
+    ranks:[[1,'9급',2900,.07],[4,'8급',3600,.06],[8,'7급',4400,.05],[14,'6급',5600,.04],[22,'5급',7000,.03]] },
+};
+
+// 연령대별 소득 분포 (통계청/고용노동부 2024 기준)
+const AGE_PERCENTILES = {
+  '25-29': { p10:2200, p25:2700, p50:3240, p75:4100, p90:5000, avg:3464 },
+  '30-34': { p10:2600, p25:3200, p50:3912, p75:5200, p90:6500, avg:4225 },
+  '35-39': { p10:3000, p25:3700, p50:4560, p75:6000, p90:7500, avg:4942 },
+  '40-44': { p10:3200, p25:3900, p50:5000, p75:6800, p90:8500, avg:5440 },
+  '45-49': { p10:3300, p25:4000, p50:5100, p75:7200, p90:9200, avg:5500 },
+  '50-54': { p10:3100, p25:3800, p50:4800, p75:6900, p90:9000, avg:5200 },
+  '55-59': { p10:2800, p25:3400, p50:4300, p75:6200, p90:8200, avg:4700 },
+};
+
+const GROWTH_DEFAULTS = [
+  { id:'growth_early', label:'1~2년차 인상', val:7 },
+  { id:'growth_jump1', label:'3년차 이직', val:15 },
+  { id:'growth_mid', label:'4~5년차 인상', val:6 },
+  { id:'growth_jump2', label:'6년차 이직', val:12 },
+  { id:'growth_late', label:'7~10년차', val:5 },
+  { id:'growth_senior', label:'11~15년차', val:4 },
+  { id:'growth_veteran', label:'16년차~', val:3 },
+];
+
+const FROM = 2024;
+let activeKeys = ['police','civil7','officer','fire'];
+let catchupTarget = 'police';
+let charts = {};
+let scenarios = [];
+
+// 동적 파라미터
+function getBirthYear() { return parseInt(document.getElementById('birthYear')?.value || 1997); }
+function getITStart() { return parseInt(document.getElementById('itStartYear')?.value || 2027); }
+function getRetireAge() { return parseInt(document.getElementById('retireAge')?.value || 60); }
+function getLifeExpect() { return parseInt(document.getElementById('lifeExpect')?.value || 85); }
+function getTO() { return getBirthYear() + getLifeExpect(); }
+function getRetireYear() { return getBirthYear() + getRetireAge(); }
+
+// 공무원 연금 (퇴직 후 월 200~300만, 근속연수에 비례)
+function calcPension(config, retireYear) {
+  const yearsWorked = retireYear - config.start;
+  if (yearsWorked <= 0) return 0;
+  // 월 연금 = 근속연수 * 10만 (최소 120만, 최대 350만)
+  const monthlyPension = Math.min(350, Math.max(120, yearsWorked * 10));
+  return monthlyPension * 12; // 연간 연금 (만원)
+}
+
+// ============================================================
+// 급여 계산
+// ============================================================
+
+function calcPublic(config) {
+  const TO = getTO();
+  const retireAge = config.retireAge || 60;
+  const retireYear = (config.birth || getBirthYear()) + retireAge;
+  const result = {}; let salary = config.ranks[0][2], ri = 0;
+  let lastSalaryBeforeRetire = 0;
+
+  for (let y = config.start; y <= getTO(); y++) {
+    if (y >= retireYear) {
+      // 퇴직 후: 연금 수령
+      const yearsWorked = retireYear - config.start;
+      const pension = Math.min(350, Math.max(120, yearsWorked * 10)) * 12;
+      result[y] = { salary: Math.round(pension), rank: '퇴직(연금)', pension: true };
+    } else {
+      const sen = y - config.start + 1;
+      if (ri+1 < config.ranks.length && sen >= config.ranks[ri+1][0]) { ri++; salary = config.ranks[ri][2]; }
+      result[y] = { salary: Math.round(salary), rank: config.ranks[ri][1] };
+      lastSalaryBeforeRetire = salary;
+      salary *= (1 + config.ranks[ri][3]);
+    }
+  }
+  return result;
+}
+
+function calcIT(startSalary, growthOverrides) {
+  const TO = getTO();
+  const itStart = getITStart();
+  const retireYear = getRetireYear();
+  const g = {};
+  GROWTH_DEFAULTS.forEach(d => {
+    if (growthOverrides && growthOverrides[d.id] !== undefined) g[d.id] = growthOverrides[d.id];
+    else { const el = document.getElementById(d.id); g[d.id] = el ? parseInt(el.value) : d.val; }
+  });
+  const result = {}; let salary = startSalary;
+  for (let y = itStart; y <= getTO(); y++) {
+    if (y >= retireYear) {
+      // IT는 퇴직 후 국민연금만 (월 약 60~100만)
+      const yearsWorked = retireYear - itStart;
+      const pension = Math.min(120, Math.max(40, yearsWorked * 3)) * 12;
+      result[y] = { salary: Math.round(pension), rank: '퇴직(국민연금)', pension: true };
+    } else {
+      const sen = y - itStart + 1;
+      result[y] = { salary: Math.round(salary), rank: sen + '년차' };
+      let rate;
+      if (sen === 3) rate = g.growth_jump1/100;
+      else if (sen === 6) rate = g.growth_jump2/100;
+      else if (sen <= 2) rate = g.growth_early/100;
+      else if (sen <= 5) rate = g.growth_mid/100;
+      else if (sen <= 10) rate = g.growth_late/100;
+      else if (sen <= 15) rate = g.growth_senior/100;
+      else rate = g.growth_veteran/100;
+      salary *= (1 + rate);
+    }
+  }
+  return result;
+}
+
+function cumul(data) {
+  let total = 0; const result = {};
+  for (let y = FROM; y <= getTO(); y++) { total += (data[y]?.salary || 0); result[y] = total; }
+  return result;
+}
+
+function findCross(targetCum, compareCum) {
+  for (let y = FROM; y <= getTO(); y++) if ((compareCum[y]||0) > (targetCum[y]||0) && (compareCum[y]||0) > 0) return y;
+  return null;
+}
+
+function getAllData() {
+  const salary = parseInt(document.getElementById('itSalary').value);
+  const data = {}, cums = {};
+  activeKeys.forEach(k => { data[k] = calcPublic(CAREERS[k]); cums[k] = cumul(data[k]); });
+  data.it = calcIT(salary); cums.it = cumul(data.it);
+  return { data, cums, salary };
+}
+
+// ============================================================
+// 전역 업데이트
+// ============================================================
+
+// ============================================================
+// 차트/표 토글
+// ============================================================
+
+function toggleView(prefix, mode, btn) {
+  const chartEl = document.getElementById(prefix+'-chart');
+  const tableEl = document.getElementById(prefix+'-table');
+  if (!chartEl || !tableEl) return;
+
+  btn.parentElement.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  if (mode === 'chart') {
+    chartEl.style.display = ''; tableEl.style.display = 'none';
+  } else {
+    chartEl.style.display = 'none'; tableEl.style.display = '';
+    // 표 데이터 채우기
+    fillTable(prefix);
+  }
+}
+
+function fillTable(prefix) {
+  const { data, cums, salary } = getAllData();
+  const el = document.getElementById(prefix+'-table');
+  if (!el) return;
+
+  const checkpoints = [2027,2030,2033,2035,2037,2040,2043,2045,2048,2050,2053,2055,2057,2060];
+
+  if (prefix === 'cumul') {
+    let h = '<table class="result-table"><thead><tr><th>연도</th><th>나이</th>';
+    activeKeys.forEach(k => h += `<th style="color:${CAREERS[k].color}">${CAREERS[k].name}</th>`);
+    h += `<th style="color:#ef4444">IT(${salary.toLocaleString()}만)</th></tr></thead><tbody>`;
+    checkpoints.forEach(y => {
+      if(y>getTO()) return;
+      h += `<tr><td>${y}</td><td>${y-getBirthYear()}세</td>`;
+      activeKeys.forEach(k => h += `<td>${((cums[k][y]||0)/10000).toFixed(1)}억</td>`);
+      h += `<td class="highlight">${((cums.it[y]||0)/10000).toFixed(1)}억</td></tr>`;
+    });
+    h += '</tbody></table>'; el.innerHTML = h;
+  }
+
+  if (prefix === 'salary') {
+    let h = '<table class="result-table"><thead><tr><th>연도</th><th>나이</th>';
+    activeKeys.forEach(k => h += `<th style="color:${CAREERS[k].color}">${CAREERS[k].name}</th>`);
+    h += `<th style="color:#ef4444">IT(${salary.toLocaleString()}만)</th></tr></thead><tbody>`;
+    checkpoints.forEach(y => {
+      if(y>getTO()) return;
+      h += `<tr><td>${y}</td><td>${y-getBirthYear()}세</td>`;
+      activeKeys.forEach(k => h += `<td>${((data[k][y]?.salary||0)/10000).toFixed(2)}억</td>`);
+      h += `<td class="highlight">${((data.it[y]?.salary||0)/10000).toFixed(2)}억</td></tr>`;
+    });
+    h += '</tbody></table>'; el.innerHTML = h;
+  }
+
+  if (prefix === 'goal') {
+    const goalAmount = parseInt(document.getElementById('goalAmount').value) * 10000;
+    let h = '<table class="result-table"><thead><tr><th>연도</th><th>나이</th><th>IT 누적</th><th>목표</th><th>진행률</th><th>판정</th></tr></thead><tbody>';
+    checkpoints.forEach(y => {
+      if(y<2027||y>getTO()) return;
+      const cum=(cums.it[y]||0), prog=cum/goalAmount*100;
+      const cls=prog>=100?'highlight':prog>=70?'warn':'negative';
+      h += `<tr><td>${y}</td><td>${y-getBirthYear()}세</td><td>${(cum/10000).toFixed(1)}억</td><td>${(goalAmount/10000).toFixed(0)}억</td><td class="${cls}">${prog.toFixed(0)}%</td><td class="${cls}">${prog>=100?'달성':'미달'}</td></tr>`;
+    });
+    h += '</tbody></table>'; el.innerHTML = h;
+  }
+
+  if (prefix === 'catchup') {
+    const targetConfig = CAREERS[catchupTarget];
+    const targetCum = cumul(calcPublic(targetConfig));
+    let h = '<table class="result-table"><thead><tr><th>연도</th><th>나이</th><th>'+targetConfig.name+'</th><th>IT</th><th>격차</th><th>상태</th></tr></thead><tbody>';
+    checkpoints.forEach(y => {
+      if(y>getTO()) return;
+      const tc=targetCum[y]||0, ic=cums.it[y]||0, gap=ic-tc;
+      const cls=gap>=0?'highlight':'negative';
+      h += `<tr><td>${y}</td><td>${y-getBirthYear()}세</td><td>${(tc/10000).toFixed(1)}억</td><td>${(ic/10000).toFixed(1)}억</td><td class="${cls}">${gap>=0?'+':''}${(gap/10000).toFixed(1)}억</td><td class="${cls}">${gap>=0?'추월':'열세'}</td></tr>`;
+    });
+    h += '</tbody></table>'; el.innerHTML = h;
+  }
+
+  if (prefix === 'mile') {
+    const milestones = [{a:10000,l:'1억'},{a:30000,l:'3억'},{a:50000,l:'5억'},{a:100000,l:'10억'},{a:200000,l:'20억'},{a:300000,l:'30억'}];
+    function fm(c,t){for(let y=FROM;y<=getTO();y++)if((c[y]||0)>=t)return y;return null;}
+    let h = '<table class="result-table"><thead><tr><th>마일스톤</th>';
+    activeKeys.forEach(k => h += `<th style="color:${CAREERS[k].color}">${CAREERS[k].name}</th>`);
+    h += `<th style="color:#ef4444">IT</th></tr></thead><tbody>`;
+    milestones.forEach(m => {
+      h += `<tr><td>${m.l}</td>`;
+      activeKeys.forEach(k => { const yr=fm(cums[k],m.a); h+=`<td>${yr?yr+'년 ('+(yr-(CAREERS[k].start))+'년차)':'미달'}</td>`; });
+      const yr=fm(cums.it,m.a); h+=`<td class="${yr?'highlight':'negative'}">${yr?yr+'년 ('+(yr-2026)+'년차)':'미달'}</td></tr>`;
+    });
+    h += '</tbody></table>'; el.innerHTML = h;
+  }
+
+  if (prefix === 'percTrack') {
+    function getAgeGroup(age){if(age<25)return null;if(age<=29)return'25-29';if(age<=34)return'30-34';if(age<=39)return'35-39';if(age<=44)return'40-44';if(age<=49)return'45-49';if(age<=54)return'50-54';if(age<=59)return'55-59';return null;}
+    function getPercentile(s,ag){const p=AGE_PERCENTILES[ag];if(!p)return 50;if(s>=p.p90)return 90+(s-p.p90)/(p.p90*.5)*10;if(s>=p.p75)return 75+(s-p.p75)/(p.p90-p.p75)*15;if(s>=p.p50)return 50+(s-p.p50)/(p.p75-p.p50)*25;if(s>=p.p25)return 25+(s-p.p25)/(p.p50-p.p25)*25;if(s>=p.p10)return 10+(s-p.p10)/(p.p25-p.p10)*15;return Math.max(1,s/p.p10*10);}
+    let h='<table class="result-table"><thead><tr><th>연도</th><th>나이</th><th>연봉</th><th>또래 중위</th><th>퍼센타일</th><th>위치</th></tr></thead><tbody>';
+    [2027,2030,2033,2035,2038,2040,2043,2045,2048,2050,2053,2055].forEach(y=>{
+      const age=y-getBirthYear(),ag=getAgeGroup(age);if(!ag)return;
+      const mySal=data.it[y]?.salary||0,perc=getPercentile(mySal,ag);
+      const top=Math.max(1,100-perc).toFixed(0);
+      const cls=perc>=75?'highlight':perc>=50?'':'warn';
+      h+=`<tr><td>${y}</td><td>${age}세</td><td>${(mySal/10000).toFixed(2)}억</td><td>${(AGE_PERCENTILES[ag].p50/10000).toFixed(2)}억</td><td class="${cls}">${perc.toFixed(0)}%</td><td class="${cls}">상위 ${top}%</td></tr>`;
+    });
+    h+='</tbody></table>';el.innerHTML=h;
+  }
+
+  if (prefix === 'scenCumul') {
+    if(scenarios.length===0) return;
+    const policeCum=cumul(calcPublic(CAREERS.police));
+    let h='<table class="result-table"><thead><tr><th>연도</th><th>경찰</th>';
+    scenarios.forEach((s,i)=>h+=`<th style="color:${SCENARIO_COLORS[i%SCENARIO_COLORS.length]}">${s.name}</th>`);
+    h+='</tr></thead><tbody>';
+    [2030,2035,2040,2045,2050,2057].forEach(y=>{
+      h+=`<tr><td>${y}</td><td>${((policeCum[y]||0)/10000).toFixed(1)}억</td>`;
+      scenarios.forEach(s=>{
+        const g={growth_early:s.early,growth_jump1:s.jump1,growth_mid:6,growth_jump2:s.jump2,growth_late:5,growth_senior:4,growth_veteran:s.veteran};
+        const c=cumul(calcIT(s.salary,g));
+        h+=`<td>${((c[y]||0)/10000).toFixed(1)}억</td>`;
+      });
+      h+='</tr>';
+    });
+    h+='</tbody></table>';el.innerHTML=h;
+  }
+}
+
+// ============================================================
+// IT 연봉 데이터 탭
+// ============================================================
+
+// ============================================================
+// 대시보드
+// ============================================================
+
+function updateDashboard() {
+  const by = getBirthYear();
+  const age = 2026 - by;
+  const salary = parseInt(document.getElementById('itSalary').value);
+  const retAge = getRetireAge();
+  const itStart = getITStart();
+  const { data, cums } = getAllData();
+
+  // 프로필
+  document.getElementById('dbGreeting').textContent = `${by}년생, 현재 ${age}세`;
+  document.getElementById('dbProfileSub').textContent = `IT 첫취업 ${itStart}년 예정 | 초봉 ${salary.toLocaleString()}만원 설정 | 퇴직 ${retAge}세(${by+retAge}년)`;
+
+  // 실수령 계산
+  const th = calcTakeHome(salary);
+  const itCum2057 = (cums.it[2057] || cums.it[getTO()] || 0);
+  const policeCum2057 = (cums.police?.[2057] || cums.police?.[getTO()] || 0);
+  const crossPolice = cums.police ? findCross(cums.police, cums.it) : null;
+
+  // 또래 대비 위치
+  const p = AGE_PERCENTILES['30-34'] || AGE_PERCENTILES['25-29'];
+  let percentile = 50;
+  if (p) {
+    if (salary >= p.p90) percentile = 92;
+    else if (salary >= p.p75) percentile = 80;
+    else if (salary >= p.p50) percentile = 55;
+    else if (salary >= p.p25) percentile = 30;
+    else percentile = 15;
+  }
+
+  // 핵심 지표
+  document.getElementById('dbMetrics').innerHTML = `
+    <div class="summary-card"><div class="label">IT 초봉</div><div class="value" style="color:var(--accent)">${salary.toLocaleString()}만</div><div class="sub">월 실수령 ${th.takeHome.toFixed(0)}만</div></div>
+    <div class="summary-card"><div class="label">생애 누적소득</div><div class="value" style="color:var(--green)">${(itCum2057/10000).toFixed(1)}억</div><div class="sub">${getTO()}년(${getLifeExpect()}세)까지</div></div>
+    <div class="summary-card"><div class="label">경찰 추월</div><div class="value" style="color:${crossPolice?'var(--green)':'var(--red)'};">${crossPolice ? crossPolice+'년' : '불가'}</div><div class="sub">${crossPolice ? (crossPolice-by)+'세' : '초봉 올려야'}</div></div>
+    <div class="summary-card"><div class="label">또래 위치</div><div class="value" style="color:${percentile>=50?'var(--green)':'var(--orange)'}">상위 ${100-percentile}%</div><div class="sub">${age}세 기준 추정</div></div>
+    <div class="summary-card"><div class="label">공제율</div><div class="value">${(th.totalDeduct/th.monthly*100).toFixed(0)}%</div><div class="sub">4대보험+세금</div></div>
+  `;
+
+  // 종합 진단
+  let diag = '<div style="font-size:13px;line-height:1.8">';
+
+  // 초봉 진단
+  if (salary >= 5000) diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--green)"><strong style="color:var(--green)">초봉 우수</strong> — ${salary.toLocaleString()}만은 IT 신입 상위 10% 수준입니다. 대기업/빅테크 레벨.</div>`;
+  else if (salary >= 4000) diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--cyan)"><strong style="color:var(--cyan)">초봉 양호</strong> — ${salary.toLocaleString()}만은 IT 신입 상위 25% 수준입니다. 중견~대기업 레벨.</div>`;
+  else if (salary >= 3500) diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--yellow)"><strong style="color:var(--yellow)">초봉 평균</strong> — ${salary.toLocaleString()}만은 IT 신입 중위 수준입니다. 이직으로 빠르게 올려야 합니다.</div>`;
+  else diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--red)"><strong style="color:var(--red)">초봉 낮음</strong> — ${salary.toLocaleString()}만은 IT 신입 하위 40% 수준입니다. 경력 쌓고 1~2년 내 이직을 강력 추천합니다.</div>`;
+
+  // 경찰 비교
+  if (crossPolice) {
+    diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--accent)"><strong style="color:var(--accent)">경찰 추월 가능</strong> — ${crossPolice}년(${crossPolice-by}세)에 누적소득이 경찰을 추월합니다. 이직 전략을 꾸준히 실행하세요.</div>`;
+  } else {
+    diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--red)"><strong style="color:var(--red)">경찰 추월 어려움</strong> — 현재 초봉으로는 경찰 누적소득을 따라잡기 어렵습니다. 초봉을 높이거나 이직 전략을 강화하세요. [따라잡기] 탭에서 필요 초봉을 확인하세요.</div>`;
+  }
+
+  // 저축 진단
+  const lvRent = parseInt(document.getElementById('lvRent')?.value || 50);
+  const lvFood = parseInt(document.getElementById('lvFood')?.value || 40);
+  const totalLiving = lvRent + lvFood + 10 + 7 + 10 + 30;
+  const saveable = th.takeHome - totalLiving;
+  if (saveable > 0) {
+    const saveRate = (saveable/th.takeHome*100).toFixed(0);
+    diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid ${saveRate>=30?'var(--green)':'var(--orange)'}"><strong>저축 가능액:</strong> 월 ${saveable.toFixed(0)}만원 (저축률 ${saveRate}%). ${saveRate>=30?'좋은 저축률입니다.':'30% 이상을 목표로 지출을 줄여보세요.'}</div>`;
+  }
+
+  // 나이 진단
+  if (itStart - by >= 30) {
+    diag += `<div style="padding:8px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--orange)"><strong style="color:var(--orange)">첫취업 ${itStart-by}세</strong> — 늦은 시작이지만, IT는 나이보다 실력과 이직 전략이 중요합니다. 처음 3년이 가장 중요한 성장기입니다.</div>`;
+  }
+
+  diag += '</div>';
+  document.getElementById('dbDiagnosis').innerHTML = diag;
+
+  // 액션 플랜
+  let plan = '<div style="font-size:13px">';
+  const actions = [];
+
+  if (salary < 4000) actions.push({icon:'🎯',title:'초봉 협상 또는 빠른 이직',desc:`현재 ${salary.toLocaleString()}만 → 1~2년 내 4,000만 이상 목표. [이직타이밍] 탭에서 최적 전략 확인.`,color:'var(--red)'});
+  actions.push({icon:'📚',title:'기술 스택 강화',desc:'이직 점프율을 높이려면 시장성 높은 기술(Java/Spring, Python, Cloud, K8s) 보유가 핵심.',color:'var(--accent)'});
+  if (saveable > 0) actions.push({icon:'💰',title:`월 ${Math.min(saveable,100).toFixed(0)}만원 투자 시작`,desc:`저축 가능액 중 일부를 인덱스 펀드에 투자. [재테크] 탭에서 시뮬레이션.`,color:'var(--green)'});
+  actions.push({icon:'📊',title:'3년차 첫 이직 준비',desc:'이직 시 평균 15~25% 연봉 점프. [시나리오] 탭에서 이직 효과 확인.',color:'var(--purple)'});
+  actions.push({icon:'🔥',title:'FIRE 목표 설정',desc:`저축률 ${saveable>0?(saveable/th.takeHome*100).toFixed(0):'30'}%로 FIRE 달성 가능 여부 확인. [FIRE] 탭으로 이동.`,color:'var(--orange)'});
+
+  actions.forEach((a,i) => {
+    plan += `<div style="display:flex;gap:10px;padding:10px;background:var(--bg);border-radius:8px;margin-bottom:8px;border-left:3px solid ${a.color}">
+      <div style="font-size:20px;min-width:28px">${a.icon}</div>
+      <div><div style="font-weight:700;color:${a.color}">Step ${i+1}. ${a.title}</div><div style="color:var(--muted);font-size:12px;margin-top:2px">${a.desc}</div></div>
+    </div>`;
+  });
+  plan += '</div>';
+  document.getElementById('dbActionPlan').innerHTML = plan;
+
+  // 미니 차트
+  const years = []; for(let y=FROM;y<=Math.min(getTO(),2065);y++) years.push(y);
+  const ds = [];
+  if (cums.police) ds.push({label:'경찰',data:years.map(y=>(cums.police[y]||0)/10000),borderColor:'#3b82f6',borderWidth:1.5,pointRadius:0,tension:.3,borderDash:[3,3]});
+  ds.push({label:`IT(${salary.toLocaleString()}만)`,data:years.map(y=>(cums.it[y]||0)/10000),borderColor:'#ef4444',borderWidth:2.5,pointRadius:0,tension:.3});
+  renderChart('dbMiniChart', years, ds, '억원');
+
+  // 빠른 링크
+  const links = [
+    {tab:'income',emoji:'💰',title:'직종별 소득 비교',desc:'경찰/공무원/장교와 IT 생애소득 비교'},
+    {tab:'itdata',emoji:'💻',title:'IT 연봉 통계 확인',desc:'KOSA 공식 직무별/분야별 연봉 데이터'},
+    {tab:'takehome',emoji:'💵',title:'실수령액 계산',desc:'4대보험+세금 공제 후 실수령액'},
+    {tab:'goal',emoji:'🎯',title:'목표 설정 & 역산',desc:'"50세까지 20억" → 필요 초봉은?'},
+    {tab:'scenario',emoji:'🔀',title:'커리어 시나리오 비교',desc:'중소안주 vs 이직 vs 대기업 vs 네카라'},
+    {tab:'fire',emoji:'🔥',title:'조기은퇴 시뮬레이션',desc:'몇 세에 경제적 자유 가능?'},
+  ];
+
+  let lhtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  links.forEach(l => {
+    lhtml += `<div onclick="switchTab('${l.tab}')" style="padding:10px;background:var(--bg);border-radius:8px;cursor:pointer;border:1px solid var(--border);transition:all .2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size:16px">${l.emoji} <strong style="font-size:13px">${l.title}</strong></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">${l.desc}</div>
+    </div>`;
+  });
+  lhtml += '</div>';
+  document.getElementById('dbQuickLinks').innerHTML = lhtml;
+}
+
+function updateITDataTab() {
+  // KOSA 공식 직무별 연봉
+  const kosaData = [
+    ['IT기획자', 11853, 14224, '+2.2%'],
+    ['IT마케터', 11788, 14145, '+5.2%'],
+    ['IT감리', 11737, 14084, '+14.0%'],
+    ['IT아키텍트', 11104, 13325, '+9.4%'],
+    ['정보보안전문가', 10412, 12494, '+5.6%'],
+    ['정보시스템운영자', 10295, 12354, '+1.4%'],
+    ['IT컨설턴트', 10238, 12286, '+10.9%'],
+    ['IT PM', 9815, 11778, '+10.8%'],
+    ['IT품질관리자', 9698, 11637, '+14.5%'],
+    ['IT테스터', 9392, 11271, '+14.1%'],
+    ['업무분석가', 9355, 11226, '+4.0%'],
+    ['UX디자이너', 8822, 10587, '+2.5%'],
+    ['데이터분석가', 8499, 10199, '+10.2%'],
+    ['DB관리자', 8349, 10019, '+1.7%'],
+    ['시스템SW개발자', 8212, 9854, '+5.7%'],
+    ['응용SW개발자', 7754, 9305, '+5.2%'],
+    ['웹개발자', 7044, 8453, '+3.5%'],
+  ];
+
+  let kh = '<table class="result-table"><thead><tr><th>직무</th><th>월임금(천원)</th><th>연봉환산(만)</th><th>전년비</th></tr></thead><tbody>';
+  kosaData.forEach(d => {
+    const color = parseFloat(d[3]) >= 10 ? 'var(--green)' : parseFloat(d[3]) >= 5 ? 'var(--cyan)' : 'var(--muted)';
+    kh += `<tr><td>${d[0]}</td><td>${d[1].toLocaleString()}천</td><td>${d[2].toLocaleString()}만</td><td style="color:${color}">${d[3]}</td></tr>`;
+  });
+  kh += '</tbody></table><div style="font-size:10px;color:var(--muted);margin-top:6px">※ KOSA 임금 = 기본급+수당+상여+퇴직금+4대보험 포함. 실수령은 20~30% 낮음. 출처: KOSA 2026 공표</div>';
+  document.getElementById('itKosaTable').innerHTML = kh;
+
+  // 기업규모별 연차 연봉
+  const sizeData = [
+    ['신입', '2,800~3,200', '3,500~4,500', '5,000~5,500', '5,500~7,500'],
+    ['3년차', '3,500~4,000', '4,500~5,500', '6,000~7,000', '7,000~9,000'],
+    ['5년차', '4,000~4,500', '5,000~6,000', '6,500~8,000', '8,000~10,000'],
+    ['10년차', '5,000~6,000', '6,500~8,000', '8,500~10,000', '10,000~15,000'],
+    ['15년차', '5,500~7,000', '7,500~9,000', '9,500~12,000', '12,000~18,000+'],
+  ];
+  let sh = '<table class="result-table"><thead><tr><th>경력</th><th style="color:var(--muted)">중소기업</th><th style="color:var(--purple)">중견기업</th><th style="color:var(--accent)">대기업</th><th style="color:var(--green)">빅테크</th></tr></thead><tbody>';
+  sizeData.forEach(d => sh += `<tr><td>${d[0]}</td><td>${d[1]}</td><td>${d[2]}</td><td>${d[3]}</td><td class="highlight">${d[4]}</td></tr>`);
+  sh += '</tbody></table><div style="font-size:10px;color:var(--muted);margin-top:6px">단위: 만원. 출처: KOSA, 고용노동부, 통계청 교차분석</div>';
+  document.getElementById('itSizeTable').innerHTML = sh;
+
+  // 분야별 연봉
+  const specData = [
+    ['블록체인', 4454, 5715, 8481, 6225],
+    ['AI/ML', 3978, 5229, 7923, 5183],
+    ['정보보안', 3500, 5500, 8500, 5200],
+    ['DevOps/인프라', 3700, 5500, 8000, 5100],
+    ['데이터엔지니어', 3787, 5000, 7776, 5000],
+    ['백엔드', 3500, 5000, 7500, 4800],
+    ['풀스택', 3400, 5000, 7500, 4800],
+    ['모바일(iOS/Android)', 3400, 4900, 7200, 4700],
+    ['프론트엔드', 3200, 4600, 7000, 4500],
+    ['웹개발', 3000, 4200, 6500, 4200],
+  ];
+  let sph = '<table class="result-table"><thead><tr><th>분야</th><th>주니어(1~3년)</th><th>미드(4~10년)</th><th>시니어(10년+)</th><th>전체평균</th></tr></thead><tbody>';
+  specData.forEach(d => sph += `<tr><td>${d[0]}</td><td>${d[1].toLocaleString()}만</td><td>${d[2].toLocaleString()}만</td><td class="highlight">${d[3].toLocaleString()}만</td><td>${d[4].toLocaleString()}만</td></tr>`);
+  sph += '</tbody></table><div style="font-size:10px;color:var(--muted);margin-top:6px">출처: Jumpit/Saramin 2025 Report (1만명+ 표본)</div>';
+  document.getElementById('itSpecTable').innerHTML = sph;
+
+  // 직무별 차트
+  const jobLabels = kosaData.map(d=>d[0]);
+  const jobValues = kosaData.map(d=>d[2]/10000);
+  renderBarChart('itJobChart', jobLabels, [{
+    label:'연봉(억)', data:jobValues,
+    backgroundColor: jobValues.map(v => v >= 1.3 ? '#22c55e60' : v >= 1.1 ? '#3b82f660' : v >= 0.9 ? '#eab30860' : '#ef444460'),
+    borderColor: jobValues.map(v => v >= 1.3 ? '#22c55e' : v >= 1.1 ? '#3b82f6' : v >= 0.9 ? '#eab308' : '#ef4444'),
+    borderWidth:1
+  }], '억원');
+
+  // 퍼센타일 차트 (경력별)
+  const percLabels = ['신입~2년', '3~5년', '5~10년', '10~15년', '15년+'];
+  const p10 = [2400,3200,4000,5000,5500];
+  const p25 = [2800,3800,4800,6000,6500];
+  const p50 = [3243,4500,5700,7500,8500];
+  const p75 = [4500,5500,7500,9500,12000];
+  const p90 = [6000,7000,10000,13000,18000];
+
+  if(charts.itPercChart) charts.itPercChart.destroy();
+  charts.itPercChart = new Chart(document.getElementById('itPercChart'), {
+    type:'bar', data:{labels:percLabels, datasets:[
+      {label:'상위10%',data:p90.map(v=>v/10000),backgroundColor:'#22c55e40',borderColor:'#22c55e',borderWidth:1},
+      {label:'상위25%',data:p75.map(v=>v/10000),backgroundColor:'#3b82f640',borderColor:'#3b82f6',borderWidth:1},
+      {label:'중위50%',data:p50.map(v=>v/10000),backgroundColor:'#eab30840',borderColor:'#eab308',borderWidth:1},
+      {label:'하위25%',data:p25.map(v=>v/10000),backgroundColor:'#f9731640',borderColor:'#f97316',borderWidth:1},
+      {label:'하위10%',data:p10.map(v=>v/10000),backgroundColor:'#ef444440',borderColor:'#ef4444',borderWidth:1},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}},
+      scales:{x:{ticks:{color:'#64748b'},grid:{display:false}},y:{ticks:{color:'#64748b',callback:v=>v.toFixed(1)+'억'},grid:{color:'#1e293b'}}}}
+  });
+
+  // 연령별 IT vs 전체
+  const ageLabels = ['25세','28세','30세','33세','35세','40세','45세','50세'];
+  const itAvg = [3350,4150,5000,6250,7500,8750,10000,10000];
+  const allAvg = [3464,3791,4225,4550,4942,5440,5500,5200];
+
+  renderChart('itAgeChart', ageLabels, [
+    {label:'IT 개발자 평균',data:itAvg.map(v=>v/10000),borderColor:'#ef4444',backgroundColor:'#ef444420',fill:true,borderWidth:3,pointRadius:3,tension:.3},
+    {label:'전체 근로자 평균',data:allAvg.map(v=>v/10000),borderColor:'#64748b',backgroundColor:'#64748b20',fill:true,borderWidth:2,borderDash:[4,4],pointRadius:3,tension:.3},
+  ],'억원');
+
+  // fillTable용 데이터
+  document.getElementById('itJob-table').innerHTML = '';
+}
+
+function onGlobalChange() {
+  document.getElementById('itSalaryVal').textContent = parseInt(document.getElementById('itSalary').value).toLocaleString() + '만';
+  GROWTH_DEFAULTS.forEach(d => { const el = document.getElementById(d.id), vel = document.getElementById(d.id+'Val'); if(el&&vel) vel.textContent = el.value+'%'; });
+
+  // 나이/퇴직/수명 표시
+  const by = getBirthYear();
+  const curAge = 2026 - by;
+  document.getElementById('birthYearAge').textContent = curAge + '세';
+  document.getElementById('retireAgeVal').textContent = getRetireAge() + '세 (' + getRetireYear() + '년)';
+  document.getElementById('lifeExpectVal').textContent = getLifeExpect() + '세 (' + getTO() + '년)';
+
+  updateIncomeChart();
+  // 대시보드가 보이면 같이 갱신
+  if (document.getElementById('tab-dashboard')?.classList.contains('active')) updateDashboard();
+  // 다른 탭은 전환 시 업데이트
+}
+
+// ============================================================
+// 탭1: 소득비교
+// ============================================================
+
+function updateIncomeChart() {
+  const { data, cums, salary } = getAllData();
+  const years = []; for (let y=FROM;y<=getTO();y++) years.push(y);
+
+  const cumDS = [], salDS = [];
+  activeKeys.forEach(k => {
+    cumDS.push({ label:CAREERS[k].name, data:years.map(y=>(cums[k][y]||0)/10000), borderColor:CAREERS[k].color, backgroundColor:CAREERS[k].color+'20', borderWidth:2, pointRadius:0, tension:.3 });
+    salDS.push({ label:CAREERS[k].name, data:years.map(y=>(data[k][y]?.salary||0)/10000), borderColor:CAREERS[k].color, borderWidth:2, pointRadius:0, tension:.3 });
+  });
+  cumDS.push({ label:`IT (${salary.toLocaleString()}만)`, data:years.map(y=>(cums.it[y]||0)/10000), borderColor:'#ef4444', backgroundColor:'#ef444420', borderWidth:3, borderDash:[6,3], pointRadius:0, tension:.3 });
+  salDS.push({ label:`IT (${salary.toLocaleString()}만)`, data:years.map(y=>(data.it[y]?.salary||0)/10000), borderColor:'#ef4444', borderWidth:3, borderDash:[6,3], pointRadius:0, tension:.3 });
+
+  renderChart('cumulChart', years, cumDS, '억원');
+  renderChart('salaryChart', years, salDS, '억원');
+
+  // 요약
+  let html = '<table class="result-table"><thead><tr><th>직종</th><th>2040</th><th>2050</th><th>2057</th><th>IT역전</th></tr></thead><tbody>';
+  [...activeKeys,'it'].forEach(k => {
+    const name = k==='it' ? `IT(${salary.toLocaleString()}만)` : CAREERS[k].name;
+    const color = k==='it' ? '#ef4444' : CAREERS[k].color;
+    const cross = k!=='it' ? findCross(cums[k], cums.it) : null;
+    html += `<tr><td style="color:${color}">${name}</td><td>${((cums[k][2040]||0)/10000).toFixed(1)}억</td><td>${((cums[k][2050]||0)/10000).toFixed(1)}억</td><td>${((cums[k][2057]||0)/10000).toFixed(1)}억</td><td>${k==='it'?'-': cross?cross+'년':'불가'}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('incomeSummary').innerHTML = html;
+}
+
+// ============================================================
+// 탭2: 목표설정
+// ============================================================
+
+function updateGoalTab() {
+  const goalAmount = parseInt(document.getElementById('goalAmount').value) * 10000; // 만원
+  const goalAge = parseInt(document.getElementById('goalAge').value);
+  const goalYear = 1997 + goalAge;
+  document.getElementById('goalAmountVal').textContent = (goalAmount/10000) + '억';
+  document.getElementById('goalAgeVal').textContent = goalAge + '세';
+
+  const { data, cums, salary } = getAllData();
+  const years = []; for(let y=FROM;y<=getTO();y++) years.push(y);
+
+  // 역산: 목표 달성에 필요한 초봉
+  let neededSalary = null;
+  for (let s = 2000; s <= 10000; s += 100) {
+    const itTest = calcIT(s);
+    const cumTest = cumul(itTest);
+    if ((cumTest[goalYear]||0) >= goalAmount) { neededSalary = s; break; }
+  }
+
+  // 목표선
+  const goalLine = years.map(y => {
+    if (y < 2027 || y > goalYear) return null;
+    const progress = (y - 2027) / (goalYear - 2027);
+    return (goalAmount * progress * progress) / 10000; // 가속 곡선
+  });
+
+  // 차트
+  const ds = [
+    { label:'IT 실제 궤적', data:years.map(y=>(cums.it[y]||0)/10000), borderColor:'#ef4444', borderWidth:3, pointRadius:0, tension:.3 },
+    { label:`목표 (${goalAge}세, ${goalAmount/10000}억)`, data:goalLine, borderColor:'#eab308', borderWidth:2, borderDash:[8,4], pointRadius:0, tension:.3 },
+  ];
+  activeKeys.forEach(k => {
+    ds.push({ label:CAREERS[k].name, data:years.map(y=>(cums[k][y]||0)/10000), borderColor:CAREERS[k].color, borderWidth:1.5, pointRadius:0, tension:.3, borderDash:[3,3] });
+  });
+  renderChart('goalChart', years, ds, '억원');
+
+  // 초봉별 달성 가능성 차트
+  const salaries = []; const canAchieve = [];
+  for (let s=2500; s<=7000; s+=500) {
+    salaries.push(s+'만');
+    const t = calcIT(s); const c = cumul(t);
+    canAchieve.push(Math.min(((c[goalYear]||0)/goalAmount)*100, 150));
+  }
+  renderBarChart('goalHeatmap', salaries, [{ label:'목표 대비 달성률(%)', data:canAchieve, backgroundColor: canAchieve.map(v => v>=100?'#22c55e80':v>=80?'#eab30880':'#ef444480'), borderColor: canAchieve.map(v => v>=100?'#22c55e':v>=80?'#eab308':'#ef4444'), borderWidth:1 }], '%', [{y:100, color:'#22c55e', label:'목표 100%'}]);
+
+  // 역산 결과
+  const itCumAtGoal = (cums.it[goalYear]||0);
+  const achieved = itCumAtGoal >= goalAmount;
+  document.getElementById('goalReverseResult').innerHTML = `
+    <div class="goal-card ${achieved?'achieved':'impossible'}">
+      <div style="font-size:13px;color:var(--muted)">현재 초봉 ${salary.toLocaleString()}만 기준</div>
+      <div style="font-size:20px;font-weight:800;margin:8px 0;color:${achieved?'var(--green)':'var(--red)'}">
+        ${goalAge}세 누적: ${(itCumAtGoal/10000).toFixed(1)}억 / 목표 ${goalAmount/10000}억
+      </div>
+      <div class="goal-status" style="background:${achieved?'var(--green)':'var(--red)'}">
+        ${achieved ? '달성 가능' : '미달 ('+(itCumAtGoal/goalAmount*100).toFixed(0)+'%)'}
+      </div>
+    </div>
+    <div class="goal-card">
+      <div style="font-size:13px;color:var(--muted)">목표 달성 필요 최소 초봉</div>
+      <div style="font-size:24px;font-weight:800;margin:8px 0;color:var(--cyan)">
+        ${neededSalary ? neededSalary.toLocaleString()+'만원' : '10,000만 초과 (비현실적)'}
+      </div>
+      <div style="font-size:12px;color:var(--muted)">현재 성장률 기준 역산</div>
+    </div>`;
+
+  // 판정
+  let judgHtml = '';
+  activeKeys.forEach(k => {
+    const cCum = cums[k][goalYear] || 0;
+    const diff = itCumAtGoal - cCum;
+    const status = diff > 0 ? 'highlight' : 'negative';
+    judgHtml += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span style="color:${CAREERS[k].color}">${CAREERS[k].name}</span>
+      <span>${(cCum/10000).toFixed(1)}억</span>
+      <span class="${status}">${diff>0?'+':''}${(diff/10000).toFixed(1)}억</span>
+    </div>`;
+  });
+  document.getElementById('goalJudgment').innerHTML = judgHtml;
+
+  // 목표 진행률 테이블
+  let gtHtml = '<table class="result-table"><thead><tr><th>연도</th><th>나이</th><th>IT 누적</th><th>목표</th><th>진행률</th><th>판정</th></tr></thead><tbody>';
+  [2030,2033,2035,2037,2040,2045,2050,2055,goalYear].forEach(y => {
+    if(y<2027||y>getTO()) return;
+    const cum = (cums.it[y]||0);
+    const prog = (cum/goalAmount*100);
+    const cls = prog>=100?'highlight':prog>=70?'warn':'negative';
+    gtHtml += `<tr><td>${y}</td><td>${y-getBirthYear()}세</td><td>${(cum/10000).toFixed(1)}억</td><td>${(goalAmount/10000).toFixed(0)}억</td><td class="${cls}">${prog.toFixed(0)}%</td><td class="${cls}">${prog>=100?'달성':'미달'}</td></tr>`;
+  });
+  gtHtml += '</tbody></table>';
+  document.getElementById('goalTable').innerHTML = gtHtml;
+}
+
+// ============================================================
+// 탭3: 따라잡기
+// ============================================================
+
+function updateCatchupTab() {
+  const targetYear = parseInt(document.getElementById('catchupYear').value);
+  document.getElementById('catchupYearVal').textContent = targetYear + '년 (' + (targetYear-1997) + '세)';
+
+  const { data, cums, salary } = getAllData();
+  const years = []; for(let y=FROM;y<=getTO();y++) years.push(y);
+
+  const targetConfig = CAREERS[catchupTarget];
+  const targetData = calcPublic(targetConfig);
+  const targetCum = cumul(targetData);
+
+  // 역산: 이 타겟을 targetYear까지 추월하려면 초봉이 얼마?
+  let neededSalary = null;
+  for (let s = 2000; s <= 12000; s += 100) {
+    const itTest = calcIT(s);
+    const cumTest = cumul(itTest);
+    if ((cumTest[targetYear]||0) >= (targetCum[targetYear]||0)) { neededSalary = s; break; }
+  }
+
+  // 현재 초봉으로 자연 추월 시점
+  const naturalCross = findCross(targetCum, cums.it);
+
+  // 차트
+  const ds = [
+    { label:targetConfig.name, data:years.map(y=>(targetCum[y]||0)/10000), borderColor:targetConfig.color, borderWidth:3, pointRadius:0, tension:.3, fill:true, backgroundColor:targetConfig.color+'15' },
+    { label:`IT (${salary.toLocaleString()}만)`, data:years.map(y=>(cums.it[y]||0)/10000), borderColor:'#ef4444', borderWidth:3, borderDash:[6,3], pointRadius:0, tension:.3 },
+  ];
+  if (neededSalary && neededSalary !== salary) {
+    const needed = calcIT(neededSalary);
+    const neededCum = cumul(needed);
+    ds.push({ label:`필요 초봉 (${neededSalary.toLocaleString()}만)`, data:years.map(y=>(neededCum[y]||0)/10000), borderColor:'#22c55e', borderWidth:2, borderDash:[4,4], pointRadius:0, tension:.3 });
+  }
+  renderChart('catchupChart', years, ds, '억원');
+
+  // 격차 차트
+  const gapData = years.filter(y=>y>=getITStart()).map(y => ((cums.it[y]||0) - (targetCum[y]||0)) / 10000);
+  renderChart('gapChart', years.filter(y=>y>=getITStart()), [{
+    label:'IT - ' + targetConfig.name + ' 격차',
+    data: gapData,
+    borderColor: gapData.map(v => v>=0?'#22c55e':'#ef4444'),
+    segment: { borderColor: ctx => { const v = ctx.p0.parsed.y; return v >= 0 ? '#22c55e' : '#ef4444'; } },
+    backgroundColor: gapData.map(v => v>=0?'#22c55e20':'#ef444420'),
+    fill: true, borderWidth:2, pointRadius:0, tension:.3,
+  }], '억원');
+
+  // 결과
+  const gap = (cums.it[targetYear]||0) - (targetCum[targetYear]||0);
+  document.getElementById('catchupResult').innerHTML = `
+    <div class="goal-card ${gap>=0?'achieved':'impossible'}">
+      <div style="font-size:13px;color:var(--muted)">vs ${targetConfig.name} (${targetYear}년 기준)</div>
+      <div style="font-size:20px;font-weight:800;margin:8px 0;color:${gap>=0?'var(--green)':'var(--red)'}">
+        격차: ${gap>=0?'+':''}${(gap/10000).toFixed(1)}억
+      </div>
+      <div style="font-size:13px;margin-top:6px">
+        자연 추월: ${naturalCross ? naturalCross+'년 ('+naturalCross+'년, IT '+(naturalCross-2026)+'년차)' : '추월 불가'}
+      </div>
+      <div style="font-size:13px;margin-top:4px">
+        ${targetYear}년 추월 필요 초봉: <strong style="color:var(--cyan)">${neededSalary ? neededSalary.toLocaleString()+'만' : '12,000만+ (비현실적)'}</strong>
+      </div>
+    </div>`;
+
+  // 실행 계획
+  const currentSalary = salary;
+  const gap2 = neededSalary ? neededSalary - currentSalary : 99999;
+  let planHtml = '<div style="font-size:13px">';
+  if (gap >= 0) {
+    planHtml += `<div style="color:var(--green);font-weight:700;margin-bottom:8px">현재 초봉으로 ${targetYear}년 추월 가능!</div>`;
+    planHtml += `<div>유지 전략: 이직 주기 3/6년차 유지, 성장률 현행 유지</div>`;
+  } else {
+    planHtml += `<div style="color:var(--red);font-weight:700;margin-bottom:8px">초봉 ${gap2>0?'+'+gap2.toLocaleString()+'만':'조정'} 필요</div>`;
+    if (gap2 <= 1000) {
+      planHtml += `<div>방법1: 더 높은 초봉 협상 (${neededSalary?.toLocaleString()}만 이상)</div>`;
+      planHtml += `<div>방법2: 이직 점프율 높이기 (현재 15%→20%)</div>`;
+      planHtml += `<div>방법3: 초반 2년 성장률 높이기 (실력 집중 투자)</div>`;
+    } else {
+      planHtml += `<div>방법1: 대기업/유니콘 입사 (초봉 ${neededSalary?.toLocaleString()}만+)</div>`;
+      planHtml += `<div>방법2: 목표 연도를 ${targetYear+5}년으로 조정</div>`;
+      planHtml += `<div>방법3: 부수입 (사이드프로젝트/강의/투자) 병행</div>`;
+    }
+  }
+  planHtml += '</div>';
+  document.getElementById('catchupPlan').innerHTML = planHtml;
+
+  // 격차 추이 테이블
+  let ctHtml = '<table class="result-table"><thead><tr><th>연도</th><th>나이</th><th>'+targetConfig.name+'</th><th>IT</th><th>격차</th><th>상태</th></tr></thead><tbody>';
+  [2027,2030,2033,2035,2037,2040,2045,2050,2055,2057].forEach(y => {
+    if(y>getTO()) return;
+    const tc=(targetCum[y]||0), ic=(cums.it[y]||0), gap2=ic-tc;
+    const cls = gap2>=0?'highlight':'negative';
+    ctHtml += `<tr><td>${y}</td><td>${y-getBirthYear()}세</td><td>${(tc/10000).toFixed(1)}억</td><td>${(ic/10000).toFixed(1)}억</td><td class="${cls}">${gap2>=0?'+':''}${(gap2/10000).toFixed(1)}억</td><td class="${cls}">${gap2>=0?'추월':'열세'}</td></tr>`;
+  });
+  ctHtml += '</tbody></table>';
+  document.getElementById('catchupTable').innerHTML = ctHtml;
+}
+
+// ============================================================
+// 탭4: 마일스톤
+// ============================================================
+
+function updateMilestoneTab() {
+  const { data, cums, salary } = getAllData();
+  const years = []; for(let y=FROM;y<=getTO();y++) years.push(y);
+
+  // 누적소득 마일스톤
+  const milestones = [
+    { amount:10000, label:'1억', emoji:'🥉' },
+    { amount:30000, label:'3억', emoji:'🥈' },
+    { amount:50000, label:'5억', emoji:'🥇' },
+    { amount:100000, label:'10억', emoji:'💎' },
+    { amount:200000, label:'20억', emoji:'👑' },
+    { amount:300000, label:'30억', emoji:'🏆' },
+  ];
+
+  function findMilestone(cumData, target) {
+    for (let y=FROM; y<=getTO(); y++) if ((cumData[y]||0) >= target) return y;
+    return null;
+  }
+
+  // IT 마일스톤 타임라인
+  let timelineHtml = '';
+  milestones.forEach(m => {
+    const year = findMilestone(cums.it, m.amount);
+    const cls = year ? 'reached' : 'unreachable';
+    timelineHtml += `<div class="timeline-item ${cls}">
+      <div class="timeline-year">${m.emoji} ${m.label}</div>
+      <div class="timeline-desc">${year ? year+'년 ('+((year-1997))+'세, IT '+(year-2026)+'년차)' : '2060년까지 미달성'}</div>
+    </div>`;
+  });
+  document.getElementById('milestoneTimeline').innerHTML = `<div class="timeline">${timelineHtml}</div>`;
+
+  // 연봉 마일스톤
+  const salMilestones = [
+    { amount:4000, label:'4,000만' }, { amount:5000, label:'5,000만' },
+    { amount:7000, label:'7,000만' }, { amount:10000, label:'1억' },
+    { amount:15000, label:'1.5억' },
+  ];
+  let salHtml = '<div class="timeline">';
+  salMilestones.forEach(m => {
+    let year = null;
+    for (let y=getITStart(); y<=getTO(); y++) if ((data.it[y]?.salary||0) >= m.amount) { year = y; break; }
+    salHtml += `<div class="timeline-item ${year?'reached':'unreachable'}">
+      <div class="timeline-year">💰 연봉 ${m.label}</div>
+      <div class="timeline-desc">${year ? year+'년 (IT '+(year-2026)+'년차)' : '미달성'}</div>
+    </div>`;
+  });
+  salHtml += '</div>';
+  document.getElementById('salaryMilestones').innerHTML = salHtml;
+
+  // 마일스톤 달성 비교 차트
+  const labels = milestones.map(m=>m.label);
+  const datasets = [];
+  const allKeys = [...activeKeys, 'it'];
+  allKeys.forEach(k => {
+    const cum = cums[k];
+    const color = k==='it' ? '#ef4444' : CAREERS[k].color;
+    const name = k==='it' ? `IT(${salary.toLocaleString()}만)` : CAREERS[k].name;
+    datasets.push({
+      label: name, backgroundColor: color+'80', borderColor: color, borderWidth:1,
+      data: milestones.map(m => { const yr = findMilestone(cum, m.amount); return yr ? yr - (k==='it'?2027:CAREERS[k]?.start||2027) + 1 : null; }),
+    });
+  });
+  renderGroupedBar('milestoneChart', labels, datasets, '소요 연수');
+
+  // 연봉 곡선 + 마일스톤
+  const salDS = [{ label:`IT 연봉`, data:years.filter(y=>y>=getITStart()).map(y=>(data.it[y]?.salary||0)/10000), borderColor:'#ef4444', borderWidth:3, pointRadius:0, tension:.3 }];
+  renderChart('mileSalaryChart', years.filter(y=>y>=getITStart()), salDS, '억원');
+}
+
+// ============================================================
+// 탭5: 또래비교
+// ============================================================
+
+function updatePercentileTab() {
+  const { data, cums, salary } = getAllData();
+
+  function getPercentile(mySalary, ageGroup) {
+    const p = AGE_PERCENTILES[ageGroup];
+    if (!p) return 50;
+    if (mySalary >= p.p90) return 90 + (mySalary - p.p90) / (p.p90 * 0.5) * 10;
+    if (mySalary >= p.p75) return 75 + (mySalary - p.p75) / (p.p90 - p.p75) * 15;
+    if (mySalary >= p.p50) return 50 + (mySalary - p.p50) / (p.p75 - p.p50) * 25;
+    if (mySalary >= p.p25) return 25 + (mySalary - p.p25) / (p.p50 - p.p25) * 25;
+    if (mySalary >= p.p10) return 10 + (mySalary - p.p10) / (p.p25 - p.p10) * 15;
+    return Math.max(1, mySalary / p.p10 * 10);
+  }
+
+  function getAgeGroup(age) {
+    if (age < 25) return null;
+    if (age <= 29) return '25-29';
+    if (age <= 34) return '30-34';
+    if (age <= 39) return '35-39';
+    if (age <= 44) return '40-44';
+    if (age <= 49) return '45-49';
+    if (age <= 54) return '50-54';
+    if (age <= 59) return '55-59';
+    return null;
+  }
+
+  // 주요 시점 퍼센타일
+  const checkpoints = [
+    { year:2027, label:'첫취업(30세)' },
+    { year:2030, label:'33세' },
+    { year:2035, label:'38세' },
+    { year:2040, label:'43세' },
+    { year:2045, label:'48세' },
+    { year:2050, label:'53세' },
+  ];
+
+  // 요약 카드
+  const firstPerc = getPercentile(salary, '30-34');
+  const y2035Sal = data.it[2035]?.salary || 0;
+  const p2035 = getPercentile(y2035Sal, '35-39');
+  const y2045Sal = data.it[2045]?.salary || 0;
+  const p2045 = getPercentile(y2045Sal, '45-49');
+
+  document.getElementById('percentileSummary').innerHTML = `
+    <div class="summary-card"><div class="label">첫취업 위치</div><div class="value" style="color:${firstPerc>=50?'var(--green)':'var(--red)'}">상위 ${Math.max(1,100-firstPerc).toFixed(0)}%</div><div class="sub">30대 초반 기준</div></div>
+    <div class="summary-card"><div class="label">38세 위치</div><div class="value" style="color:${p2035>=50?'var(--green)':'var(--orange)'}">상위 ${Math.max(1,100-p2035).toFixed(0)}%</div><div class="sub">연봉 ${(y2035Sal/10000).toFixed(1)}억</div></div>
+    <div class="summary-card"><div class="label">48세 위치</div><div class="value" style="color:${p2045>=50?'var(--green)':'var(--orange)'}">상위 ${Math.max(1,100-p2045).toFixed(0)}%</div><div class="sub">연봉 ${(y2045Sal/10000).toFixed(1)}억</div></div>
+    <div class="summary-card"><div class="label">평균 초과 시점</div><div class="value" style="color:var(--cyan)">${firstPerc>=50?'첫취업부터':'?'}</div><div class="sub">또래 평균 연봉 기준</div></div>
+  `;
+
+  // 게이지
+  let gaugeHtml = '';
+  checkpoints.forEach(cp => {
+    const age = cp.year - 1997;
+    const ag = getAgeGroup(age);
+    if (!ag) return;
+    const mySal = data.it[cp.year]?.salary || 0;
+    const perc = getPercentile(mySal, ag);
+    const percStr = Math.min(99, perc).toFixed(0);
+    const topStr = Math.max(1, 100-perc).toFixed(0);
+    const color = perc >= 75 ? 'var(--green)' : perc >= 50 ? 'var(--cyan)' : perc >= 25 ? 'var(--orange)' : 'var(--red)';
+    gaugeHtml += `
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span>${cp.label} (${ag}세 그룹)</span>
+          <span style="color:${color};font-weight:700">상위 ${topStr}% | 연봉 ${(mySal/10000).toFixed(1)}억</span>
+        </div>
+        <div class="gauge-bar">
+          <div class="gauge-fill" style="width:${Math.min(percStr,100)}%;background:linear-gradient(90deg, ${color}40, ${color})">
+            ${percStr}%
+          </div>
+        </div>
+        <div class="gauge-labels"><span>하위 10%<br>${(AGE_PERCENTILES[ag].p10/10000).toFixed(1)}억</span><span>중위<br>${(AGE_PERCENTILES[ag].p50/10000).toFixed(1)}억</span><span>상위 10%<br>${(AGE_PERCENTILES[ag].p90/10000).toFixed(1)}억</span></div>
+      </div>`;
+  });
+  document.getElementById('percentileGauges').innerHTML = gaugeHtml;
+
+  // 또래 분포 차트
+  const curAge = 30;
+  const curAG = '30-34';
+  const p = AGE_PERCENTILES[curAG];
+  const distLabels = ['하위10%','하위25%','중위50%','상위25%','상위10%','내 위치'];
+  const distData = [p.p10, p.p25, p.p50, p.p75, p.p90, salary].map(v=>v/10000);
+  const distColors = ['#ef444480','#f9731680','#eab30880','#22c55e80','#3b82f680','#ef4444'];
+  renderBarChart('percentileChart', distLabels, [{ label:'연봉(억)', data:distData, backgroundColor:distColors, borderColor:distColors.map(c=>c.replace('80','')), borderWidth:2 }], '억원');
+
+  // 퍼센타일 추이 차트
+  const trackYears = []; const trackPercs = [];
+  for (let y=getITStart(); y<=2055; y++) {
+    const age = y - 1997;
+    const ag = getAgeGroup(age);
+    if (!ag) continue;
+    trackYears.push(y);
+    trackPercs.push(getPercentile(data.it[y]?.salary||0, ag));
+  }
+  renderChart('percTrackChart', trackYears, [{
+    label:'내 퍼센타일 (100%=최상위)', data:trackPercs,
+    borderColor:'#ef4444', backgroundColor:'#ef444420', fill:true, borderWidth:3, pointRadius:0, tension:.3,
+  },{
+    label:'상위 25% 기준선', data:trackYears.map(()=>75),
+    borderColor:'#22c55e60', borderWidth:1, borderDash:[4,4], pointRadius:0,
+  },{
+    label:'중위 기준선', data:trackYears.map(()=>50),
+    borderColor:'#eab30860', borderWidth:1, borderDash:[4,4], pointRadius:0,
+  }], '퍼센타일(%)');
+
+  // 테이블
+  let thtml = '<table class="result-table"><thead><tr><th>시점</th><th>나이</th><th>연봉</th><th>또래 중위</th><th>퍼센타일</th><th>위치</th></tr></thead><tbody>';
+  checkpoints.forEach(cp => {
+    const age = cp.year-1997;
+    const ag = getAgeGroup(age);
+    if(!ag) return;
+    const mySal = data.it[cp.year]?.salary || 0;
+    const perc = getPercentile(mySal, ag);
+    const topStr = Math.max(1, 100-perc).toFixed(0);
+    const cls = perc>=75?'highlight':perc>=50?'':'warn';
+    thtml += `<tr><td>${cp.label}</td><td>${age}세</td><td>${(mySal/10000).toFixed(1)}억</td><td>${(AGE_PERCENTILES[ag].p50/10000).toFixed(1)}억</td><td class="${cls}">${perc.toFixed(0)}%</td><td class="${cls}">상위 ${topStr}%</td></tr>`;
+  });
+  thtml += '</tbody></table>';
+  document.getElementById('percentileTable').innerHTML = thtml;
+}
+
+// ============================================================
+// 탭6: 시나리오
+// ============================================================
+
+let scenarioId = 0;
+const SCENARIO_COLORS = ['#ef4444','#22c55e','#3b82f6','#a855f7','#f97316','#06b6d4','#eab308'];
+
+function addScenario(preset) {
+  const id = scenarioId++;
+  const s = preset || { name:`시나리오 ${id+1}`, salary:3500, jump1:15, jump2:12, early:7, veteran:3 };
+  scenarios.push({ id, ...s });
+  renderScenarioInputs();
+  updateScenarioTab();
+}
+
+function removeScenario(id) {
+  scenarios = scenarios.filter(s => s.id !== id);
+  renderScenarioInputs();
+  updateScenarioTab();
+}
+
+function renderScenarioInputs() {
+  let html = '';
+  scenarios.forEach((s, i) => {
+    const color = SCENARIO_COLORS[i % SCENARIO_COLORS.length];
+    html += `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:8px;border-left:3px solid ${color};background:${color}10;border-radius:0 8px 8px 0">
+      <input type="text" value="${s.name}" onchange="scenarios[${i}].name=this.value;updateScenarioTab()" style="width:120px;font-size:12px">
+      <label style="margin:0;font-size:11px">초봉</label><input type="number" value="${s.salary}" onchange="scenarios[${i}].salary=+this.value;updateScenarioTab()" style="width:70px;font-size:12px">
+      <label style="margin:0;font-size:11px">이직1</label><input type="number" value="${s.jump1}" onchange="scenarios[${i}].jump1=+this.value;updateScenarioTab()" style="width:50px;font-size:12px">%
+      <label style="margin:0;font-size:11px">이직2</label><input type="number" value="${s.jump2}" onchange="scenarios[${i}].jump2=+this.value;updateScenarioTab()" style="width:50px;font-size:12px">%
+      <label style="margin:0;font-size:11px">초반</label><input type="number" value="${s.early}" onchange="scenarios[${i}].early=+this.value;updateScenarioTab()" style="width:50px;font-size:12px">%
+      <label style="margin:0;font-size:11px">후반</label><input type="number" value="${s.veteran}" onchange="scenarios[${i}].veteran=+this.value;updateScenarioTab()" style="width:50px;font-size:12px">%
+      <button class="btn btn-danger" onclick="removeScenario(${s.id})" style="padding:4px 8px;font-size:11px">X</button>
+    </div>`;
+  });
+  document.getElementById('scenarioInputs').innerHTML = html;
+}
+
+function loadPresetScenarios() {
+  scenarios = []; scenarioId = 0;
+  addScenario({ name:'중소 3000 안주', salary:3000, jump1:8, jump2:8, early:5, veteran:2 });
+  addScenario({ name:'중견 3500 이직', salary:3500, jump1:15, jump2:12, early:7, veteran:3 });
+  addScenario({ name:'대기업 4500', salary:4500, jump1:12, jump2:10, early:6, veteran:3 });
+  addScenario({ name:'네카라 5500', salary:5500, jump1:20, jump2:15, early:8, veteran:4 });
+  addScenario({ name:'SSAFY→삼성', salary:5000, jump1:10, jump2:8, early:5, veteran:3 });
+}
+
+function updateScenarioTab() {
+  if (scenarios.length === 0) return;
+  const years = []; for(let y=getITStart();y<=getTO();y++) years.push(y);
+  const cumDS = [], salDS = [];
+
+  // 경찰 기준선
+  const policeCum = cumul(calcPublic(CAREERS.police));
+  cumDS.push({ label:'경찰 조기임용(03생)', data:years.map(y=>(policeCum[y]||0)/10000), borderColor:'#3b82f6', borderWidth:2, pointRadius:0, tension:.3, borderDash:[4,4] });
+
+  let resultHtml = '<table class="result-table"><thead><tr><th>시나리오</th><th>초봉</th><th>2040</th><th>2050</th><th>2057</th><th>경찰추월</th></tr></thead><tbody>';
+
+  scenarios.forEach((s, i) => {
+    const color = SCENARIO_COLORS[i % SCENARIO_COLORS.length];
+    const growth = { growth_early:s.early, growth_jump1:s.jump1, growth_mid:6, growth_jump2:s.jump2, growth_late:5, growth_senior:4, growth_veteran:s.veteran };
+    const d = calcIT(s.salary, growth);
+    const c = cumul(d);
+
+    cumDS.push({ label:s.name, data:years.map(y=>(c[y]||0)/10000), borderColor:color, borderWidth:2.5, pointRadius:0, tension:.3 });
+    salDS.push({ label:s.name, data:years.map(y=>(d[y]?.salary||0)/10000), borderColor:color, borderWidth:2.5, pointRadius:0, tension:.3 });
+
+    const cross = findCross(policeCum, c);
+    resultHtml += `<tr><td style="color:${color}">${s.name}</td><td>${s.salary.toLocaleString()}만</td>
+      <td>${((c[2040]||0)/10000).toFixed(1)}억</td><td>${((c[2050]||0)/10000).toFixed(1)}억</td>
+      <td>${((c[2057]||0)/10000).toFixed(1)}억</td><td>${cross?cross+'년':'불가'}</td></tr>`;
+  });
+  resultHtml += '</tbody></table>';
+
+  renderChart('scenCumulChart', years, cumDS, '억원');
+  renderChart('scenSalaryChart', years, salDS, '억원');
+  document.getElementById('scenarioResult').innerHTML = resultHtml;
+}
+
+// ============================================================
+// ============================================================
+// 실수령액 계산기
+// ============================================================
+
+function calcTakeHome(annual) {
+  // 2026년 기준 4대보험 + 세금 계산
+  const monthly = annual / 12;
+  const taxFree = parseInt(document.getElementById('thTaxFree')?.value || 10);
+  const dependents = parseInt(document.getElementById('thDependents')?.value || 1);
+  const taxable = Math.max(0, monthly - taxFree);
+
+  // 4대보험 (월 기준, 만원)
+  const pension = taxable * 0.045;       // 국민연금 4.5% (2026: 4.75% 단계적)
+  const health = taxable * 0.03545;      // 건강보험 3.545%
+  const ltcare = health * 0.1295;        // 장기요양 12.95%
+  const employ = taxable * 0.009;        // 고용보험 0.9%
+  const insurance = pension + health + ltcare + employ;
+
+  // 소득세 (간이세액표 근사)
+  const annualTaxable = taxable * 12;
+  let tax = 0;
+  if (annualTaxable <= 1400) tax = annualTaxable * 0.06;
+  else if (annualTaxable <= 5000) tax = 84 + (annualTaxable - 1400) * 0.15;
+  else if (annualTaxable <= 8800) tax = 624 + (annualTaxable - 5000) * 0.24;
+  else if (annualTaxable <= 15000) tax = 1536 + (annualTaxable - 8800) * 0.35;
+  else tax = 3706 + (annualTaxable - 15000) * 0.38;
+
+  // 부양가족 공제
+  const deduction = dependents * 150;
+  tax = Math.max(0, tax - deduction * 0.15);
+  const monthlyTax = tax / 12;
+  const localTax = monthlyTax * 0.1;
+
+  const totalDeduct = insurance + monthlyTax + localTax;
+  const takeHome = monthly - totalDeduct;
+
+  return { monthly, taxable, pension, health, ltcare, employ, insurance, monthlyTax, localTax, totalDeduct, takeHome };
+}
+
+function updateTakeHome() {
+  const salary = parseInt(document.getElementById('thSalary').value);
+  const taxFree = parseInt(document.getElementById('thTaxFree').value);
+  const deps = parseInt(document.getElementById('thDependents').value);
+  document.getElementById('thSalaryVal').textContent = salary.toLocaleString() + '만';
+  document.getElementById('thTaxFreeVal').textContent = taxFree + '만';
+  document.getElementById('thDependentsVal').textContent = deps + '명';
+
+  const r = calcTakeHome(salary);
+
+  // 요약
+  document.getElementById('thSummary').innerHTML = `
+    <div class="summary-card"><div class="label">월 실수령액</div><div class="value" style="color:var(--green)">${r.takeHome.toFixed(0)}만</div><div class="sub">세전 ${r.monthly.toFixed(0)}만</div></div>
+    <div class="summary-card"><div class="label">연 실수령액</div><div class="value">${(r.takeHome*12).toFixed(0)}만</div><div class="sub">${((r.takeHome*12)/10000).toFixed(2)}억</div></div>
+    <div class="summary-card"><div class="label">공제율</div><div class="value" style="color:var(--red)">${(r.totalDeduct/r.monthly*100).toFixed(1)}%</div><div class="sub">월 ${r.totalDeduct.toFixed(0)}만 공제</div></div>
+    <div class="summary-card"><div class="label">실수령 비율</div><div class="value" style="color:var(--cyan)">${(r.takeHome/r.monthly*100).toFixed(1)}%</div></div>
+  `;
+
+  // 공제 내역
+  document.getElementById('thBreakdown').innerHTML = `
+    <table class="result-table">
+      <tr><td>국민연금</td><td class="negative">-${r.pension.toFixed(1)}만</td><td style="color:var(--muted)">4.5%</td></tr>
+      <tr><td>건강보험</td><td class="negative">-${r.health.toFixed(1)}만</td><td style="color:var(--muted)">3.545%</td></tr>
+      <tr><td>장기요양</td><td class="negative">-${r.ltcare.toFixed(1)}만</td><td style="color:var(--muted)">건보의 12.95%</td></tr>
+      <tr><td>고용보험</td><td class="negative">-${r.employ.toFixed(1)}만</td><td style="color:var(--muted)">0.9%</td></tr>
+      <tr><td style="font-weight:700">4대보험 소계</td><td class="negative" style="font-weight:700">-${r.insurance.toFixed(1)}만</td><td></td></tr>
+      <tr><td>소득세</td><td class="negative">-${r.monthlyTax.toFixed(1)}만</td><td></td></tr>
+      <tr><td>지방소득세</td><td class="negative">-${r.localTax.toFixed(1)}만</td><td style="color:var(--muted)">소득세의 10%</td></tr>
+      <tr style="border-top:2px solid var(--border)"><td style="font-weight:700">총 공제</td><td class="negative" style="font-weight:700">-${r.totalDeduct.toFixed(1)}만</td><td></td></tr>
+      <tr><td style="font-weight:700;color:var(--green)">실수령액</td><td class="highlight" style="font-size:16px">${r.takeHome.toFixed(0)}만</td><td></td></tr>
+    </table>`;
+
+  // 연봉 구간별 표
+  let tbl = '<table class="result-table"><thead><tr><th>연봉</th><th>월세전</th><th>공제</th><th>월실수령</th><th>연실수령</th><th>공제율</th></tr></thead><tbody>';
+  for (let s = 2500; s <= 10000; s += 500) {
+    const t = calcTakeHome(s);
+    const isCur = s === salary;
+    tbl += `<tr style="${isCur?'background:var(--accent)20':''}"><td>${isCur?'<strong>':''}${s.toLocaleString()}만${isCur?'</strong>':''}</td><td>${t.monthly.toFixed(0)}만</td><td class="negative">${t.totalDeduct.toFixed(0)}만</td><td class="highlight">${t.takeHome.toFixed(0)}만</td><td>${(t.takeHome*12).toFixed(0)}만</td><td>${(t.totalDeduct/t.monthly*100).toFixed(1)}%</td></tr>`;
+  }
+  tbl += '</tbody></table>';
+  document.getElementById('thTable').innerHTML = tbl;
+
+  // 차트
+  const salaries = []; const takeHomes = []; const rates = [];
+  for (let s = 2000; s <= 12000; s += 500) {
+    salaries.push(s/10000+'억'); const t = calcTakeHome(s);
+    takeHomes.push(t.takeHome*12); rates.push(t.totalDeduct/t.monthly*100);
+  }
+  if(charts.thChart) charts.thChart.destroy();
+  charts.thChart = new Chart(document.getElementById('thChart'), {
+    data: { labels:salaries, datasets:[
+      {type:'bar',label:'연 실수령(만)',data:takeHomes,backgroundColor:'#22c55e60',borderColor:'#22c55e',borderWidth:1,yAxisID:'y'},
+      {type:'line',label:'공제율(%)',data:rates,borderColor:'#ef4444',borderWidth:2,pointRadius:0,tension:.3,yAxisID:'y1'},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{position:'left',ticks:{color:'#64748b'},grid:{color:'#1e293b'}},y1:{position:'right',ticks:{color:'#ef4444',callback:v=>v+'%'},grid:{display:false}},x:{ticks:{color:'#64748b',maxTicksLimit:12},grid:{display:false}}},plugins:{legend:{labels:{color:'#94a3b8'}}}}
+  });
+
+  // 파이 차트
+  if(charts.thPieChart) charts.thPieChart.destroy();
+  charts.thPieChart = new Chart(document.getElementById('thPieChart'), {
+    type:'doughnut', data:{labels:['실수령액','4대보험','소득세','지방소득세'],datasets:[{data:[r.takeHome,r.insurance,r.monthlyTax,r.localTax],backgroundColor:['#22c55e','#3b82f6','#ef4444','#f97316']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:12}}}}}
+  });
+}
+
+// ============================================================
+// 생활비 시뮬레이션
+// ============================================================
+
+function updateLivingTab() {
+  const ids = ['lvRent','lvFood','lvTransport','lvPhone','lvInsurance','lvEtc'];
+  const labels = ['월세/대출','식비','교통비','통신비','보험/연금','기타'];
+  const vals = ids.map(id => { const v=parseInt(document.getElementById(id).value); document.getElementById(id+'Val').textContent=v+'만'; return v; });
+  const totalLiving = vals.reduce((a,b)=>a+b,0);
+
+  const salary = parseInt(document.getElementById('itSalary').value);
+  const th = calcTakeHome(salary);
+  const saveable = th.takeHome - totalLiving;
+
+  // 요약
+  document.getElementById('lvSummary').innerHTML = `
+    <div class="summary-card"><div class="label">월 실수령</div><div class="value">${th.takeHome.toFixed(0)}만</div></div>
+    <div class="summary-card"><div class="label">월 생활비</div><div class="value" style="color:var(--orange)">${totalLiving}만</div></div>
+    <div class="summary-card"><div class="label">월 저축가능</div><div class="value" style="color:${saveable>=0?'var(--green)':'var(--red)'};">${saveable.toFixed(0)}만</div><div class="sub">${saveable>=0?(saveable/th.takeHome*100).toFixed(0)+'% 저축률':'적자!'}</div></div>
+    <div class="summary-card"><div class="label">연 저축가능</div><div class="value">${(saveable*12).toFixed(0)}만</div></div>
+  `;
+
+  // 파이
+  if(charts.lvPieChart) charts.lvPieChart.destroy();
+  charts.lvPieChart = new Chart(document.getElementById('lvPieChart'),{
+    type:'doughnut',data:{labels:['세금/4대보험',...labels,'저축'],datasets:[{data:[th.totalDeduct,...vals,Math.max(0,saveable)],backgroundColor:['#64748b','#ef4444','#f97316','#eab308','#a855f7','#3b82f6','#06b6d4','#22c55e']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94a3b8',font:{size:11}}}}}
+  });
+
+  // 연차별 저축 추이
+  const { data } = getAllData();
+  const years = []; const saveData = []; const livingData = [];
+  for (let y = getITStart(); y <= getTO(); y++) {
+    years.push(y);
+    const s = data.it[y]?.salary || 0;
+    const t = calcTakeHome(s);
+    const inflatedLiving = totalLiving * Math.pow(1.025, y - 2027); // 인플레 2.5%
+    saveData.push(Math.max(0, t.takeHome - inflatedLiving));
+    livingData.push(inflatedLiving);
+  }
+  renderChart('lvChart', years, [
+    {label:'월 저축가능액',data:saveData,borderColor:'#22c55e',backgroundColor:'#22c55e20',fill:true,borderWidth:2,pointRadius:0,tension:.3},
+    {label:'월 생활비(인플레반영)',data:livingData,borderColor:'#f97316',borderWidth:2,borderDash:[4,4],pointRadius:0,tension:.3},
+  ],'만원');
+
+  // 표
+  let tbl = '<table class="result-table"><thead><tr><th>연도</th><th>나이</th><th>연봉</th><th>월실수령</th><th>생활비</th><th>저축가능</th><th>저축률</th></tr></thead><tbody>';
+  [2027,2030,2033,2035,2037,2040,2045,2050,2055].forEach(y => {
+    if(y>getTO()) return;
+    const s=data.it[y]?.salary||0; const t=calcTakeHome(s);
+    const infl=totalLiving*Math.pow(1.025,y-getITStart());
+    const sv=Math.max(0,t.takeHome-infl);
+    tbl+=`<tr><td>${y}</td><td>${y-getBirthYear()}세</td><td>${s.toLocaleString()}만</td><td>${t.takeHome.toFixed(0)}만</td><td>${infl.toFixed(0)}만</td><td class="${sv>0?'highlight':'negative'}">${sv.toFixed(0)}만</td><td>${t.takeHome>0?(sv/t.takeHome*100).toFixed(0)+'%':'-'}</td></tr>`;
+  });
+  tbl+='</tbody></table>';
+  document.getElementById('lvTable').innerHTML=tbl;
+}
+
+function applyLivingPreset(type) {
+  const p = {
+    frugal: {rent:30,food:25,transport:5,phone:5,insurance:5,etc:15},
+    normal: {rent:50,food:40,transport:10,phone:7,insurance:10,etc:30},
+    comfort: {rent:80,food:60,transport:15,phone:10,insurance:20,etc:50},
+    city: {rent:60,food:45,transport:10,phone:8,insurance:10,etc:35},
+  }[type];
+  document.getElementById('lvRent').value=p.rent; document.getElementById('lvFood').value=p.food;
+  document.getElementById('lvTransport').value=p.transport; document.getElementById('lvPhone').value=p.phone;
+  document.getElementById('lvInsurance').value=p.insurance; document.getElementById('lvEtc').value=p.etc;
+  updateLivingTab();
+}
+
+// ============================================================
+// 이직 타이밍 시뮬레이터
+// ============================================================
+
+function calcJobHopIT(startSalary, cycle, jumpRate, stayRate, maxHops) {
+  const result = {}; let salary = startSalary; let hops = 0;
+  for (let y = getITStart(); y <= getTO(); y++) {
+    const sen = y - 2027 + 1;
+    result[y] = { salary: Math.round(salary), rank: sen+'년차' };
+    if (sen % cycle === 0 && hops < maxHops) {
+      salary *= (1 + jumpRate/100); hops++;
+    } else {
+      salary *= (1 + stayRate/100);
+    }
+  }
+  return result;
+}
+
+function updateJobHopTab() {
+  const cycle = parseInt(document.getElementById('jhCycle').value);
+  const jump = parseInt(document.getElementById('jhJump').value);
+  const stay = parseInt(document.getElementById('jhStay').value);
+  const maxH = parseInt(document.getElementById('jhMax').value);
+  document.getElementById('jhCycleVal').textContent = cycle+'년';
+  document.getElementById('jhJumpVal').textContent = jump+'%';
+  document.getElementById('jhStayVal').textContent = stay+'%';
+  document.getElementById('jhMaxVal').textContent = maxH+'회';
+
+  const salary = parseInt(document.getElementById('itSalary').value);
+  const years = []; for(let y=getITStart();y<=getTO();y++) years.push(y);
+
+  // 4가지 전략 비교
+  const strategies = [
+    {name:'한우물(이직0)', cycle:99, jump:0, stay:4, max:0, color:'#6b7280'},
+    {name:'현재설정', cycle, jump, stay, max:maxH, color:'#ef4444'},
+    {name:'보통(3년/15%)', cycle:3, jump:15, stay:5, max:5, color:'#3b82f6'},
+    {name:'적극(2년/20%)', cycle:2, jump:20, stay:6, max:6, color:'#22c55e'},
+  ];
+
+  const salDS = [], cumDS = [];
+  let tbl = '<table class="result-table"><thead><tr><th>전략</th><th>2035</th><th>2040</th><th>2050</th><th>2057누적</th></tr></thead><tbody>';
+
+  strategies.forEach(s => {
+    const d = calcJobHopIT(salary, s.cycle, s.jump, s.stay, s.max);
+    const c = cumul(d);
+    salDS.push({label:s.name, data:years.map(y=>(d[y]?.salary||0)/10000), borderColor:s.color, borderWidth:s.name==='현재설정'?3:2, borderDash:s.name==='현재설정'?[]:[4,4], pointRadius:0, tension:.3});
+    cumDS.push({label:s.name, data:years.map(y=>(c[y]||0)/10000), borderColor:s.color, borderWidth:s.name==='현재설정'?3:2, borderDash:s.name==='현재설정'?[]:[4,4], pointRadius:0, tension:.3});
+    tbl += `<tr><td style="color:${s.color}">${s.name}</td><td>${((d[2035]?.salary||0)/10000).toFixed(2)}억</td><td>${((d[2040]?.salary||0)/10000).toFixed(2)}억</td><td>${((d[2050]?.salary||0)/10000).toFixed(2)}억</td><td>${((c[2057]||0)/10000).toFixed(1)}억</td></tr>`;
+  });
+  tbl += '</tbody></table>';
+
+  renderChart('jhSalaryChart', years, salDS, '억원');
+  renderChart('jhCumulChart', years, cumDS, '억원');
+  document.getElementById('jhTable').innerHTML = tbl;
+
+  // 요약
+  const curData = calcJobHopIT(salary, cycle, jump, stay, maxH);
+  const curCum = cumul(curData);
+  const loyalCum = cumul(calcJobHopIT(salary, 99, 0, 4, 0));
+  const diff = (curCum[2057]||0) - (loyalCum[2057]||0);
+
+  document.getElementById('jhSummary').innerHTML = `
+    <div class="summary-card"><div class="label">현재 전략 2057 누적</div><div class="value" style="color:var(--green)">${((curCum[2057]||0)/10000).toFixed(1)}억</div></div>
+    <div class="summary-card"><div class="label">한우물 대비</div><div class="value" style="color:${diff>=0?'var(--green)':'var(--red)'}">${diff>=0?'+':''}${(diff/10000).toFixed(1)}억</div><div class="sub">이직 효과</div></div>
+    <div class="summary-card"><div class="label">2040 연봉</div><div class="value">${((curData[2040]?.salary||0)/10000).toFixed(2)}억</div></div>
+    <div class="summary-card"><div class="label">2050 연봉</div><div class="value">${((curData[2050]?.salary||0)/10000).toFixed(2)}억</div></div>
+  `;
+}
+
+function applyJHPreset(type) {
+  const p = {loyal:{c:99,j:0,s:4,m:0},normal:{c:3,j:15,s:5,m:5},aggressive:{c:2,j:20,s:6,m:6},mercenary:{c:2,j:25,s:7,m:8}}[type];
+  document.getElementById('jhCycle').value=p.c;document.getElementById('jhJump').value=p.j;
+  document.getElementById('jhStay').value=p.s;document.getElementById('jhMax').value=p.m;
+  updateJobHopTab();
+}
+
+// ============================================================
+// FIRE 은퇴 시뮬레이터
+// ============================================================
+
+function updateFireTab() {
+  const monthlyGoal = parseInt(document.getElementById('fireMonthly').value);
+  const saveRate = parseInt(document.getElementById('fireSaveRate').value);
+  const returnRate = parseFloat(document.getElementById('fireReturn').value);
+  const inflation = parseFloat(document.getElementById('fireInflation').value);
+  const currentAsset = parseInt(document.getElementById('fireCurrentAsset').value);
+
+  document.getElementById('fireMonthlyVal').textContent = monthlyGoal+'만';
+  document.getElementById('fireSaveRateVal').textContent = saveRate+'%';
+  document.getElementById('fireReturnVal').textContent = returnRate+'%';
+  document.getElementById('fireInflationVal').textContent = inflation+'%';
+  document.getElementById('fireCurrentAssetVal').textContent = currentAsset.toLocaleString()+'만';
+
+  // FIRE 목표 금액 (4% 룰: 연간 생활비 x 25)
+  const fireTarget = monthlyGoal * 12 * 25;
+  const realReturn = (returnRate - inflation) / 100;
+
+  const salary = parseInt(document.getElementById('itSalary').value);
+  const { data } = getAllData();
+
+  // 시뮬레이션
+  const years = []; const assets = []; const targets = [];
+  let asset = currentAsset; let fireYear = null;
+
+  let tbl = '<table class="result-table"><thead><tr><th>연도</th><th>나이</th><th>연봉</th><th>월저축</th><th>자산</th><th>FIRE목표</th><th>달성률</th></tr></thead><tbody>';
+
+  for (let y = getITStart(); y <= getTO(); y++) {
+    years.push(y);
+    const s = data.it[y]?.salary || 0;
+    const th = calcTakeHome(s);
+    const monthlySave = th.takeHome * saveRate / 100;
+    const annualSave = monthlySave * 12;
+
+    asset = (asset + annualSave) * (1 + realReturn);
+    const inflatedTarget = fireTarget * Math.pow(1 + inflation/100, y - 2027);
+
+    assets.push(asset);
+    targets.push(inflatedTarget);
+
+    if (!fireYear && asset >= inflatedTarget) fireYear = y;
+
+    if ([2027,2030,2033,2035,2037,2040,2045,2050,2055,2060].includes(y)) {
+      const pct = (asset/inflatedTarget*100);
+      tbl += `<tr><td>${y}</td><td>${y-getBirthYear()}세</td><td>${s.toLocaleString()}만</td><td>${monthlySave.toFixed(0)}만</td><td>${(asset/10000).toFixed(1)}억</td><td>${(inflatedTarget/10000).toFixed(1)}억</td><td class="${pct>=100?'highlight':pct>=70?'warn':'negative'}">${pct.toFixed(0)}%</td></tr>`;
+    }
+  }
+  tbl += '</tbody></table>';
+  document.getElementById('fireTable').innerHTML = tbl;
+
+  // 요약
+  document.getElementById('fireSummary').innerHTML = `
+    <div class="summary-card"><div class="label">FIRE 목표 자산</div><div class="value" style="color:var(--yellow)">${(fireTarget/10000).toFixed(1)}억</div><div class="sub">월 ${monthlyGoal}만 x 12 x 25</div></div>
+    <div class="summary-card"><div class="label">FIRE 달성 시점</div><div class="value" style="color:${fireYear?'var(--green)':'var(--red)'}">${fireYear?fireYear+'년':'불가'}</div><div class="sub">${fireYear?(fireYear-1997)+'세 (IT '+(fireYear-2026)+'년차)':'2060년까지 미달성'}</div></div>
+    <div class="summary-card"><div class="label">필요 기간</div><div class="value">${fireYear?(fireYear-2027)+'년':'-'}</div></div>
+    <div class="summary-card"><div class="label">실질수익률</div><div class="value" style="color:var(--cyan)">${(realReturn*100).toFixed(1)}%</div><div class="sub">${returnRate}% - ${inflation}% 인플레</div></div>
+  `;
+
+  // 차트
+  renderChart('fireChart', years, [
+    {label:'자산 성장',data:assets.map(v=>v/10000),borderColor:'#22c55e',backgroundColor:'#22c55e20',fill:true,borderWidth:3,pointRadius:0,tension:.3},
+    {label:'FIRE 목표(인플레반영)',data:targets.map(v=>v/10000),borderColor:'#ef4444',borderWidth:2,borderDash:[6,3],pointRadius:0,tension:.3},
+  ],'억원');
+
+  // 저축률별 FIRE 연수
+  const rateLabels = []; const rateYears = [];
+  for (let sr = 10; sr <= 80; sr += 5) {
+    rateLabels.push(sr+'%');
+    let a = currentAsset; let fy = null;
+    for (let y = getITStart(); y <= getTO(); y++) {
+      const s = data.it[y]?.salary || 0;
+      const th2 = calcTakeHome(s);
+      a = (a + th2.takeHome * sr / 100 * 12) * (1 + realReturn);
+      if (!fy && a >= fireTarget * Math.pow(1+inflation/100, y-getITStart())) fy = y - 2027;
+    }
+    rateYears.push(fy || 35);
+  }
+  renderBarChart('fireRateChart', rateLabels, [{
+    label:'FIRE까지 소요 연수',data:rateYears,
+    backgroundColor:rateYears.map(v=>v<=15?'#22c55e80':v<=25?'#eab30880':'#ef444480'),
+    borderColor:rateYears.map(v=>v<=15?'#22c55e':v<=25?'#eab308':'#ef4444'),borderWidth:1
+  }],'년', [{y:15,color:'#22c55e',label:'15년(조기은퇴)'},{y:25,color:'#eab308',label:'25년(일반은퇴)'}]);
+}
+
+// ============================================================
+// 탭7: 재테크 (기존)
+// ============================================================
+
+function updateInvestChart() {
+  const monthly = parseInt(document.getElementById('monthlySave').value);
+  const saveGr = parseInt(document.getElementById('saveGrowth').value);
+  let stockR = parseInt(document.getElementById('stockRatio').value);
+  let bondR = parseInt(document.getElementById('bondRatio').value);
+  if (stockR + bondR > 100) bondR = 100 - stockR;
+  document.getElementById('bondRatio').value = bondR;
+  const cashR = 100 - stockR - bondR;
+  document.getElementById('monthlySaveVal').textContent = monthly+'만';
+  document.getElementById('saveGrowthVal').textContent = saveGr+'%/년';
+  document.getElementById('stockRatioVal').textContent = stockR+'%';
+  document.getElementById('bondRatioVal').textContent = bondR+'%';
+  document.getElementById('cashRatioVal').textContent = cashR+'%';
+  document.getElementById('stockReturnVal').textContent = document.getElementById('stockReturn').value+'%';
+  document.getElementById('bondReturnVal').textContent = document.getElementById('bondReturn').value+'%';
+  document.getElementById('cashReturnVal').textContent = document.getElementById('cashReturn').value+'%';
+
+  const stockRet = parseFloat(document.getElementById('stockReturn').value)/100;
+  const bondRet = parseFloat(document.getElementById('bondReturn').value)/100;
+  const cashRet = parseFloat(document.getElementById('cashReturn').value)/100;
+
+  const years=[],totalAsset=[],totalDeposit=[],totalProfit=[],stockA=[],bondA=[],cashA=[];
+  let stock=0,bond=0,cash=0,deposited=0,curM=monthly;
+  for(let y=getITStart();y<=getTO();y++){
+    years.push(y); const as=curM*12; deposited+=as;
+    stock+=as*(stockR/100); bond+=as*(bondR/100); cash+=as*(cashR/100);
+    stock*=(1+stockRet); bond*=(1+bondRet); cash*=(1+cashRet);
+    const t=stock+bond+cash;
+    totalAsset.push(t); totalDeposit.push(deposited); totalProfit.push(t-deposited);
+    stockA.push(stock); bondA.push(bond); cashA.push(cash); curM*=(1+saveGr/100);
+  }
+  const final=totalAsset[totalAsset.length-1],finalDep=totalDeposit[totalDeposit.length-1],finalProfit=totalProfit[totalProfit.length-1];
+  const y10=totalAsset[9]||0, y20=totalAsset[19]||0;
+
+  document.getElementById('investSummary').innerHTML = `
+    <div class="summary-card"><div class="label">총 자산 (2060)</div><div class="value" style="color:var(--green)">${(final/10000).toFixed(1)}억</div><div class="sub">원금 ${(finalDep/10000).toFixed(1)}억 + 수익 ${(finalProfit/10000).toFixed(1)}억</div></div>
+    <div class="summary-card"><div class="label">10년 후</div><div class="value">${(y10/10000).toFixed(1)}억</div><div class="sub">원금대비 ${(y10/(totalDeposit[9]||1)*100).toFixed(0)}%</div></div>
+    <div class="summary-card"><div class="label">20년 후</div><div class="value">${(y20/10000).toFixed(1)}억</div><div class="sub">원금대비 ${(y20/(totalDeposit[19]||1)*100).toFixed(0)}%</div></div>
+    <div class="summary-card"><div class="label">수익률</div><div class="value" style="color:var(--cyan)">${((final/finalDep-1)*100).toFixed(0)}%</div><div class="sub">${(stockR/100*stockRet*100+bondR/100*bondRet*100+cashR/100*cashRet*100).toFixed(1)}%/년</div></div>`;
+
+  renderChart('investChart',years,[
+    {label:'총 자산',data:totalAsset.map(v=>v/10000),borderColor:'#22c55e',backgroundColor:'#22c55e20',borderWidth:3,pointRadius:0,fill:true,tension:.3},
+    {label:'원금',data:totalDeposit.map(v=>v/10000),borderColor:'#94a3b8',backgroundColor:'#94a3b820',borderWidth:2,borderDash:[4,4],pointRadius:0,fill:true,tension:.3},
+  ],'억원');
+  renderStackBar('assetChart',years,[
+    {label:'주식',data:stockA.map(v=>v/10000),backgroundColor:'#3b82f6'},
+    {label:'채권',data:bondA.map(v=>v/10000),backgroundColor:'#a855f7'},
+    {label:'예적금',data:cashA.map(v=>v/10000),backgroundColor:'#f97316'},
+  ],'억원');
+}
+
+function applyPreset(type) {
+  const p = { conservative:{stock:20,bond:40,cash:40,sr:5,br:4,cr:3}, balanced:{stock:50,bond:30,cash:20,sr:7,br:4,cr:2.5}, aggressive:{stock:80,bond:15,cash:5,sr:10,br:5,cr:2}, index:{stock:60,bond:20,cash:20,sr:8,br:4,cr:2.5} }[type];
+  document.getElementById('stockRatio').value=p.stock; document.getElementById('bondRatio').value=p.bond;
+  document.getElementById('stockReturn').value=p.sr; document.getElementById('bondReturn').value=p.br; document.getElementById('cashReturn').value=p.cr;
+  updateInvestChart();
+}
+
+// ============================================================
+// 탭8: 종합자산 (기존)
+// ============================================================
+
+function updateTotalTab() {
+  const {data,cums,salary}=getAllData();
+  const monthly=parseInt(document.getElementById('monthlySave').value);
+  const saveGr=parseInt(document.getElementById('saveGrowth').value)/100;
+  const stockR=parseInt(document.getElementById('stockRatio').value)/100;
+  const bondR=parseInt(document.getElementById('bondRatio').value)/100;
+  const cashR2=Math.max(0,1-stockR-bondR);
+  const stockRet=parseFloat(document.getElementById('stockReturn').value)/100;
+  const bondRet=parseFloat(document.getElementById('bondReturn').value)/100;
+  const cashRet=parseFloat(document.getElementById('cashReturn').value)/100;
+  const years=[];for(let y=FROM;y<=getTO();y++)years.push(y);
+
+  function calcAsset(incomeData,startYear){
+    let s=0,b=0,c=0,cm=monthly;const r={};
+    for(let y=FROM;y<=getTO();y++){
+      if(y>=startYear&&incomeData[y]){
+        const ratio=incomeData[y].salary/Math.max(data.it[y]?.salary||salary,1);
+        const adj=cm*Math.min(ratio,2);const as=adj*12;
+        s+=as*stockR;b+=as*bondR;c+=as*cashR2;
+        s*=(1+stockRet);b*=(1+bondRet);c*=(1+cashRet);cm*=(1+saveGr);
+      }
+      r[y]=s+b+c;
+    }return r;
+  }
+
+  const itAsset={};let s=0,b=0,c=0,cm=monthly;
+  for(let y=FROM;y<=getTO();y++){if(y>=getITStart()){const as=cm*12;s+=as*stockR;b+=as*bondR;c+=as*cashR2;s*=(1+stockRet);b*=(1+bondRet);c*=(1+cashRet);cm*=(1+saveGr);}itAsset[y]=s+b+c;}
+
+  const totalAssets={};const keys=[...activeKeys,'it'];
+  keys.forEach(k=>{totalAssets[k]={};const asset=k==='it'?itAsset:calcAsset(data[k],CAREERS[k].start);for(let y=FROM;y<=getTO();y++)totalAssets[k][y]=(cums[k][y]||0)*.82+(asset[y]||0);});
+
+  const ds=[];
+  activeKeys.forEach(k=>ds.push({label:CAREERS[k].name,data:years.map(y=>(totalAssets[k][y]||0)/10000),borderColor:CAREERS[k].color,borderWidth:2,pointRadius:0,tension:.3}));
+  ds.push({label:`IT(${salary.toLocaleString()}만)`,data:years.map(y=>(totalAssets.it[y]||0)/10000),borderColor:'#ef4444',borderWidth:3,borderDash:[6,3],pointRadius:0,tension:.3});
+  renderChart('totalChart',years,ds,'억원');
+
+  renderChart('breakdownChart',years.filter(y=>y>=getITStart()),[
+    {label:'세후 누적소득',data:years.filter(y=>y>=getITStart()).map(y=>(cums.it[y]||0)*.82/10000),borderColor:'#3b82f6',backgroundColor:'#3b82f620',fill:true,borderWidth:2,pointRadius:0,tension:.3},
+    {label:'투자 자산',data:years.filter(y=>y>=getITStart()).map(y=>(itAsset[y]||0)/10000),borderColor:'#22c55e',backgroundColor:'#22c55e20',fill:true,borderWidth:2,pointRadius:0,tension:.3},
+  ],'억원');
+
+  const itT57=totalAssets.it[2057]||0;
+  let sumHtml=`<div class="summary-card"><div class="label">IT 총자산(2057)</div><div class="value" style="color:var(--green)">${(itT57/10000).toFixed(1)}억</div></div>`;
+  activeKeys.forEach(k=>{const v=totalAssets[k][2057]||0;const d=itT57-v;sumHtml+=`<div class="summary-card"><div class="label">${CAREERS[k].name}</div><div class="value">${(v/10000).toFixed(1)}억</div><div class="sub ${d>=0?'highlight':'negative'}">IT대비 ${d>=0?'+':''}${(d/10000).toFixed(1)}억</div></div>`;});
+  document.getElementById('totalSummary').innerHTML=sumHtml;
+
+  let th='<table class="result-table"><thead><tr><th>연도</th><th>나이</th>';
+  activeKeys.forEach(k=>th+=`<th style="color:${CAREERS[k].color}">${CAREERS[k].name}</th>`);
+  th+=`<th style="color:#ef4444">IT</th></tr></thead><tbody>`;
+  [2030,2035,2040,2045,2050,2055,2057].forEach(y=>{th+=`<tr><td>${y}</td><td>${y-getBirthYear()}세</td>`;activeKeys.forEach(k=>th+=`<td>${((totalAssets[k][y]||0)/10000).toFixed(1)}억</td>`);th+=`<td class="highlight">${((totalAssets.it[y]||0)/10000).toFixed(1)}억</td></tr>`;});
+  th+='</tbody></table>';document.getElementById('totalTable').innerHTML=th;
+}
+
+// ============================================================
+// 차트 렌더링 헬퍼
+// ============================================================
+
+function renderChart(id, labels, datasets, yLabel) {
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type:'line', data:{labels,datasets},
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y?.toFixed(1)}${yLabel}`}}},
+      scales:{x:{ticks:{color:'#64748b',maxTicksLimit:12},grid:{color:'#1e293b'}},y:{ticks:{color:'#64748b',callback:v=>v.toFixed(0)+yLabel.replace('억원','억')},grid:{color:'#1e293b'}}}
+    }
+  });
+}
+
+function renderBarChart(id, labels, datasets, yLabel, lines) {
+  if(charts[id]) charts[id].destroy();
+  const annotations = {};
+  if(lines) lines.forEach((l,i)=>{ annotations['line'+i]={type:'line',yMin:l.y,yMax:l.y,borderColor:l.color,borderWidth:2,borderDash:[6,3],label:{display:true,content:l.label,position:'end',color:l.color,font:{size:10}}}; });
+  charts[id] = new Chart(document.getElementById(id), {
+    type:'bar', data:{labels,datasets},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#94a3b8'}},annotation:{annotations}},
+      scales:{x:{ticks:{color:'#64748b'},grid:{display:false}},y:{ticks:{color:'#64748b'},grid:{color:'#1e293b'}}}
+    }
+  });
+}
+
+function renderGroupedBar(id, labels, datasets, yLabel) {
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type:'bar', data:{labels,datasets},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#94a3b8',font:{size:10}}}},
+      scales:{x:{ticks:{color:'#64748b'},grid:{display:false}},y:{ticks:{color:'#64748b',callback:v=>v+'년'},grid:{color:'#1e293b'},title:{display:true,text:yLabel,color:'#94a3b8'}}}
+    }
+  });
+}
+
+function renderStackBar(id, labels, datasets, yLabel) {
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), {
+    type:'bar', data:{labels,datasets:datasets.map(d=>({...d,borderWidth:0}))},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#94a3b8'}}},
+      scales:{x:{stacked:true,ticks:{color:'#64748b',maxTicksLimit:12},grid:{display:false}},y:{stacked:true,ticks:{color:'#64748b'},grid:{color:'#1e293b'}}}
+    }
+  });
+}
+
+// ============================================================
+// CSV 다운로드
+// ============================================================
+
+function downloadCSV() {
+  const {data,cums,salary}=getAllData();
+  let csv='\uFEFF연도';
+  [...activeKeys,'it'].forEach(k=>{const n=k==='it'?'IT':CAREERS[k].name;csv+=`,${n}_직급,${n}_연봉(만),${n}_누적(만)`;});
+  csv+='\n';
+  for(let y=FROM;y<=getTO();y++){csv+=y;[...activeKeys,'it'].forEach(k=>{const d=data[k][y]||{};csv+=`,${d.rank||''},${d.salary||0},${cums[k][y]||0}`;});csv+='\n';}
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`comparison_${salary}.csv`;a.click();
+}
+
+// ============================================================
+// 탭 전환
+// ============================================================
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  const targetTab = document.querySelector(`.tab[onclick*="'${id}'"]`);
+  if (targetTab) targetTab.classList.add('active');
+  const targetContent = document.getElementById('tab-'+id);
+  if (targetContent) targetContent.classList.add('active');
+  // 모바일: 사이드바 닫기
+  document.querySelector('.sidebar')?.classList.remove('open');
+
+  if(id==='dashboard') updateDashboard();
+  if(id==='itdata') updateITDataTab();
+  if(id==='takehome') updateTakeHome();
+  if(id==='living') updateLivingTab();
+  if(id==='goal') updateGoalTab();
+  if(id==='catchup') updateCatchupTab();
+  if(id==='milestone') updateMilestoneTab();
+  if(id==='percentile') updatePercentileTab();
+  if(id==='scenario') { if(scenarios.length===0) loadPresetScenarios(); updateScenarioTab(); }
+  if(id==='jobhop') updateJobHopTab();
+  if(id==='fire') updateFireTab();
+  if(id==='invest') updateInvestChart();
+  if(id==='total') updateTotalTab();
+  if(id==='realestate') { updateRealEstateTab(); updateRoadmap(); }
+  if(id==='compound') updateCompoundTab();
+  if(id==='yearend') updateYearEndTab();
+}
+
+// ============================================================
+// 초기화
+// ============================================================
+
+window.addEventListener('load', () => {
+  // 직종 체크
+  const cc = document.getElementById('careerChecks');
+  Object.entries(CAREERS).forEach(([k,v]) => {
+    const active = activeKeys.includes(k);
+    const div = document.createElement('div');
+    div.className = 'check-item' + (active?' active':'');
+    div.style.color = v.color;
+    div.innerHTML = `<span class="check-dot" style="background:${v.color}"></span>${v.name}`;
+    div.onclick = () => { if(activeKeys.includes(k)) activeKeys=activeKeys.filter(x=>x!==k); else activeKeys.push(k); div.classList.toggle('active'); onGlobalChange(); };
+    cc.appendChild(div);
+  });
+
+  // 따라잡기 대상
+  const ct = document.getElementById('catchupTarget');
+  Object.entries(CAREERS).forEach(([k,v]) => {
+    const div = document.createElement('div');
+    div.className = 'check-item' + (k===catchupTarget?' active':'');
+    div.style.color = v.color;
+    div.innerHTML = `<span class="check-dot" style="background:${v.color}"></span>${v.name}`;
+    div.onclick = () => { catchupTarget=k; ct.querySelectorAll('.check-item').forEach(d=>d.classList.remove('active')); div.classList.add('active'); updateCatchupTab(); };
+    ct.appendChild(div);
+  });
+
+  // 성장률
+  const gc = document.getElementById('growthControls');
+  GROWTH_DEFAULTS.forEach(d => {
+    gc.innerHTML += `<div class="range-row"><label>${d.label}</label><input type="range" id="${d.id}" min="0" max="30" value="${d.val}" oninput="onGlobalChange()"><span class="val" id="${d.id}Val">${d.val}%</span></div>`;
+  });
+
+  onGlobalChange();
+  updateDashboard();
+  updateInvestChart();
+});
+
+// ============================================================
+// 인플레이션 반영 (소득비교 탭)
+// ============================================================
+
+function applyInflation(dataObj, cumsObj) {
+  const inflToggle = document.getElementById('inflationToggle');
+  if (!inflToggle || !inflToggle.checked) return { data: dataObj, cums: cumsObj };
+  const inflRate = 0.025;
+  const baseYear = 2027;
+  const adjData = {}, adjCums = {};
+  for (const k in dataObj) {
+    adjData[k] = {};
+    for (let y = FROM; y <= getTO(); y++) {
+      if (dataObj[k][y]) {
+        const discount = Math.pow(1 + inflRate, -(y - baseYear));
+        adjData[k][y] = { salary: Math.round(dataObj[k][y].salary * discount), rank: dataObj[k][y].rank };
+      }
+    }
+    // recalc cumul
+    let total = 0; adjCums[k] = {};
+    for (let y = FROM; y <= getTO(); y++) { total += (adjData[k][y]?.salary || 0); adjCums[k][y] = total; }
+  }
+  return { data: adjData, cums: adjCums };
+}
+
+// Patch getAllData to support inflation
+const _origGetAllData = getAllData;
+getAllData = function() {
+  const orig = _origGetAllData();
+  const { data, cums } = applyInflation(orig.data, orig.cums);
+  return { data, cums, salary: orig.salary };
+};
+
+// ============================================================
+// 부동산 시뮬레이터
+// ============================================================
+
+function updateRealEstateTab() {
+  const price = parseInt(document.getElementById('rePrice').value);
+  const jeonse = parseInt(document.getElementById('reJeonse').value);
+  const deposit = parseInt(document.getElementById('reDeposit').value);
+  const monthlyRent = parseInt(document.getElementById('reMonthlyRent').value);
+  const loanRate = parseFloat(document.getElementById('reLoanRate').value) / 100;
+  const ltv = parseInt(document.getElementById('reLTV').value) / 100;
+  const oppCost = parseFloat(document.getElementById('reOppCost').value) / 100;
+
+  document.getElementById('rePriceVal').textContent = (price/10000).toFixed(1) + '억';
+  document.getElementById('reJeonseVal').textContent = (jeonse/10000).toFixed(1) + '억';
+  document.getElementById('reDepositVal').textContent = deposit.toLocaleString() + '만';
+  document.getElementById('reMonthlyRentVal').textContent = monthlyRent + '만';
+  document.getElementById('reLoanRateVal').textContent = (loanRate*100).toFixed(1) + '%';
+  document.getElementById('reLTVVal').textContent = (ltv*100) + '%';
+  document.getElementById('reOppCostVal').textContent = (oppCost*100) + '%';
+
+  const loanAmount = price * ltv;
+  const downPayment = price - loanAmount;
+  const acquisitionTax = price * 0.011; // 1.1% 취득세 (6억 이하 1주택)
+
+  const periods = [5, 10, 15, 20, 25, 30];
+  const buyCosts = [], jeonseCosts = [], rentCosts = [];
+  const years = [], buyY = [], jeonseY = [], rentY = [];
+
+  for (let y = 1; y <= 30; y++) {
+    years.push(y + '년');
+    // 매매: 취득세 + 대출이자누적 + 관리비 - 자산가치증가(연2%)
+    const loanInterest = loanAmount * loanRate * y;
+    const maintenance = 30 * 12 * y; // 월 30만 관리/수선
+    const appreciation = price * (Math.pow(1.02, y) - 1);
+    const buyCost = acquisitionTax + downPayment * oppCost * y + loanInterest + maintenance - appreciation;
+    buyY.push(buyCost / 10000);
+
+    // 전세: 기회비용(전세금을 투자했으면)
+    const jeonseOpp = jeonse * (Math.pow(1 + oppCost, y) - 1);
+    jeonseY.push(jeonseOpp / 10000);
+
+    // 월세: 보증금 기회비용 + 월세누적(인플레 2.5%)
+    let totalRent = 0;
+    for (let m = 0; m < y; m++) totalRent += monthlyRent * 12 * Math.pow(1.025, m);
+    const depositOpp = deposit * (Math.pow(1 + oppCost, y) - 1);
+    rentY.push((totalRent + depositOpp) / 10000);
+  }
+
+  renderChart('reCompareChart', years, [
+    { label: '매매 순비용', data: buyY, borderColor: '#ef4444', borderWidth: 3, pointRadius: 0, tension: .3 },
+    { label: '전세 기회비용', data: jeonseY, borderColor: '#3b82f6', borderWidth: 3, pointRadius: 0, tension: .3 },
+    { label: '월세 총비용', data: rentY, borderColor: '#f97316', borderWidth: 3, pointRadius: 0, tension: .3 },
+  ], '억원');
+
+  // 요약
+  const buy10 = buyY[9], jeonse10 = jeonseY[9], rent10 = rentY[9];
+  const best10 = Math.min(buy10, jeonse10, rent10);
+  const bestLabel = best10 === buy10 ? '매매' : best10 === jeonse10 ? '전세' : '월세';
+  document.getElementById('reSummary').innerHTML = `
+    <div class="summary-card"><div class="label">10년 매매 순비용</div><div class="value" style="color:var(--red)">${buy10.toFixed(1)}억</div><div class="sub">취득세+이자-시세상승</div></div>
+    <div class="summary-card"><div class="label">10년 전세 비용</div><div class="value" style="color:var(--accent)">${jeonse10.toFixed(1)}억</div><div class="sub">기회비용(${(oppCost*100)}% 투자)</div></div>
+    <div class="summary-card"><div class="label">10년 월세 비용</div><div class="value" style="color:var(--orange)">${rent10.toFixed(1)}억</div><div class="sub">월세+보증금기회비용</div></div>
+    <div class="summary-card"><div class="label">10년 기준 유리</div><div class="value" style="color:var(--green)">${bestLabel}</div></div>
+  `;
+
+  // 비교 표
+  let tbl = '<table class="result-table"><thead><tr><th>기간</th><th>매매 순비용</th><th>전세 비용</th><th>월세 비용</th><th>유리</th></tr></thead><tbody>';
+  [5,10,15,20,25,30].forEach(y => {
+    const b = buyY[y-1], j = jeonseY[y-1], r = rentY[y-1];
+    const best = Math.min(b,j,r);
+    const bl = best===b?'매매':best===j?'전세':'월세';
+    tbl += `<tr><td>${y}년</td><td>${b.toFixed(1)}억</td><td>${j.toFixed(1)}억</td><td>${r.toFixed(1)}억</td><td class="highlight">${bl}</td></tr>`;
+  });
+  tbl += '</tbody></table>';
+  document.getElementById('reCompareTable').innerHTML = tbl;
+}
+
+function updateRoadmap() {
+  const target = parseInt(document.getElementById('reTargetPrice').value);
+  const current = parseInt(document.getElementById('reCurrentSave').value);
+  const monthly = parseInt(document.getElementById('reMonthlySave').value);
+
+  document.getElementById('reTargetPriceVal').textContent = (target/10000).toFixed(1) + '억';
+  document.getElementById('reCurrentSaveVal').textContent = current.toLocaleString() + '만';
+  document.getElementById('reMonthlySaveVal').textContent = monthly + '만';
+
+  // LTV 50% 기준 필요 자기자본
+  const needed = target * 0.5 + target * 0.011; // 50% 자기자본 + 취득세
+  const annualSave = monthly * 12;
+  const investReturn = 0.05; // 저축 중 투자 수익률 5%
+
+  let saved = current, years = 0;
+  while (saved < needed && years < 50) {
+    saved = (saved + annualSave) * (1 + investReturn);
+    years++;
+  }
+
+  const loanAmount = target * 0.5;
+  const monthlyPayment = loanAmount * 0.035 / 12 + loanAmount / (30*12); // 원리금균등 30년 간이계산
+
+  document.getElementById('roadmapResult').innerHTML = `
+    <div class="goal-card ${years<=15?'achieved':years<=25?'in-progress':'impossible'}">
+      <div style="font-size:13px;color:var(--muted)">LTV 50%, 투자수익률 5% 기준</div>
+      <div style="font-size:20px;font-weight:800;margin:8px 0;color:${years<=15?'var(--green)':years<=25?'var(--yellow)':'var(--red)'}">
+        내집마련까지 약 ${years < 50 ? years+'년' : '50년 이상'}
+      </div>
+      <div style="font-size:13px;margin-top:6px">
+        필요 자기자본: <strong>${(needed/10000).toFixed(1)}억</strong> (매매가의 50% + 취득세)
+      </div>
+      <div style="font-size:13px;margin-top:4px">
+        대출 예상: <strong>${(loanAmount/10000).toFixed(1)}억</strong> (월 상환 약 ${monthlyPayment.toFixed(0)}만)
+      </div>
+      <div style="font-size:12px;margin-top:8px;color:var(--muted)">
+        DTI = 연 상환액/연소득 (40% 이내 권장) | DSR = 모든 대출 상환액/연소득 (40% 이내) | LTV = 대출/주택가
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// 복리효과 시뮬레이터
+// ============================================================
+
+function updateCompoundTab() {
+  const monthly = parseInt(document.getElementById('cpMonthly').value);
+  const returnRate = parseFloat(document.getElementById('cpReturn').value) / 100;
+  const totalYears = parseInt(document.getElementById('cpYears').value);
+
+  document.getElementById('cpMonthlyVal').textContent = monthly + '만';
+  document.getElementById('cpReturnVal').textContent = (returnRate*100) + '%';
+  document.getElementById('cpYearsVal').textContent = totalYears + '년';
+
+  const years = [], principals = [], interests = [], totals = [];
+  let total = 0, principal = 0, crossYear = null;
+
+  for (let y = 1; y <= totalYears; y++) {
+    principal += monthly * 12;
+    total = (total + monthly * 12) * (1 + returnRate);
+    const interest = total - principal;
+    years.push(y + '년');
+    principals.push(principal / 10000);
+    interests.push(interest / 10000);
+    totals.push(total / 10000);
+    if (!crossYear && interest >= principal) crossYear = y;
+  }
+
+  const finalTotal = total, finalPrincipal = principal, finalInterest = total - principal;
+
+  // Summary
+  document.getElementById('cpSummary').innerHTML = `
+    <div class="summary-card"><div class="label">최종 자산</div><div class="value" style="color:var(--green)">${(finalTotal/10000).toFixed(1)}억</div><div class="sub">${totalYears}년 후</div></div>
+    <div class="summary-card"><div class="label">투입 원금</div><div class="value">${(finalPrincipal/10000).toFixed(1)}억</div><div class="sub">월 ${monthly}만 x ${totalYears}년</div></div>
+    <div class="summary-card"><div class="label">복리 수익</div><div class="value" style="color:var(--cyan)">${(finalInterest/10000).toFixed(1)}억</div><div class="sub">수익률 ${((finalInterest/finalPrincipal)*100).toFixed(0)}%</div></div>
+    <div class="summary-card" style="border-color:var(--purple)"><div class="label">이자 > 원금 시점</div><div class="value" style="color:var(--purple)">${crossYear ? crossYear+'년차' : totalYears+'년 내 불가'}</div><div class="sub">복리 마법 시작!</div></div>
+  `;
+
+  // Stacked bar chart
+  if(charts.cpGrowthChart) charts.cpGrowthChart.destroy();
+  charts.cpGrowthChart = new Chart(document.getElementById('cpGrowthChart'), {
+    type: 'bar', data: { labels: years, datasets: [
+      { label: '원금', data: principals, backgroundColor: '#22c55e80', borderColor: '#22c55e', borderWidth: 0 },
+      { label: '복리 수익', data: interests, backgroundColor: '#3b82f680', borderColor: '#3b82f6', borderWidth: 0 },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8' } },
+        annotation: crossYear ? { annotations: { crossLine: { type: 'line', xMin: crossYear-1, xMax: crossYear-1, borderColor: '#a855f7', borderWidth: 2, borderDash: [6,3], label: { display: true, content: '이자 > 원금', color: '#a855f7', position: 'start', font: { size: 11 } } } } } : {} },
+      scales: { x: { stacked: true, ticks: { color: '#64748b', maxTicksLimit: 15 }, grid: { display: false } }, y: { stacked: true, ticks: { color: '#64748b', callback: v => v.toFixed(0)+'억' }, grid: { color: '#1e293b' } } }
+    }
+  });
+
+  // Table
+  let tbl = '<table class="result-table"><thead><tr><th>연차</th><th>원금</th><th>수익</th><th>총자산</th><th>수익/원금</th></tr></thead><tbody>';
+  for (let i = 0; i < totalYears; i++) {
+    const highlight = crossYear && (i+1) === crossYear;
+    tbl += `<tr style="${highlight?'background:rgba(168,85,247,0.15)':''}"><td>${i+1}년</td><td>${principals[i].toFixed(1)}억</td><td>${interests[i].toFixed(1)}억</td><td class="highlight">${totals[i].toFixed(1)}억</td><td>${principals[i]>0?(interests[i]/principals[i]*100).toFixed(0)+'%':'-'}</td></tr>`;
+  }
+  tbl += '</tbody></table>';
+  document.getElementById('cpTable').innerHTML = tbl;
+
+  // Compare chart: different return rates
+  const compareRates = [0.03, 0.05, 0.08, 0.10, 0.12, 0.15];
+  const compareLabels = compareRates.map(r => (r*100)+'%');
+  const compareData = compareRates.map(r => {
+    let t = 0;
+    for (let y = 0; y < totalYears; y++) t = (t + monthly * 12) * (1 + r);
+    return t / 10000;
+  });
+  renderBarChart('cpCompareChart', compareLabels, [{
+    label: `${totalYears}년 후 최종 자산(억)`, data: compareData,
+    backgroundColor: compareRates.map(r => r === returnRate ? '#a855f780' : '#3b82f680'),
+    borderColor: compareRates.map(r => r === returnRate ? '#a855f7' : '#3b82f6'), borderWidth: 2
+  }], '억원');
+}
+
+function applyCPPreset(rate) {
+  document.getElementById('cpReturn').value = rate;
+  updateCompoundTab();
+}
+
+// ============================================================
+// 연말정산 시뮬레이터
+// ============================================================
+
+function updateYearEndTab() {
+  const gross = parseInt(document.getElementById('yeGross').value);
+  const credit = parseInt(document.getElementById('yeCredit').value);
+  const debit = parseInt(document.getElementById('yeDebit').value);
+  const cash = parseInt(document.getElementById('yeCash').value);
+  const medical = parseInt(document.getElementById('yeMedical').value);
+  const edu = parseInt(document.getElementById('yeEdu').value);
+  const donation = parseInt(document.getElementById('yeDonation').value);
+  const housing = parseInt(document.getElementById('yeHousing').value);
+  const pension = parseInt(document.getElementById('yePension').value);
+  const irp = parseInt(document.getElementById('yeIRP').value);
+
+  document.getElementById('yeGrossVal').textContent = gross.toLocaleString() + '만';
+  document.getElementById('yeCreditVal').textContent = credit.toLocaleString() + '만';
+  document.getElementById('yeDebitVal').textContent = debit.toLocaleString() + '만';
+  document.getElementById('yeCashVal').textContent = cash.toLocaleString() + '만';
+  document.getElementById('yeMedicalVal').textContent = medical.toLocaleString() + '만';
+  document.getElementById('yeEduVal').textContent = edu.toLocaleString() + '만';
+  document.getElementById('yeDonationVal').textContent = donation.toLocaleString() + '만';
+  document.getElementById('yeHousingVal').textContent = housing.toLocaleString() + '만';
+  document.getElementById('yePensionVal').textContent = pension.toLocaleString() + '만';
+  document.getElementById('yeIRPVal').textContent = irp.toLocaleString() + '만';
+
+  // 1. 카드/현금 소득공제
+  const threshold = gross * 0.25;
+  const totalSpend = credit + debit + cash;
+  const cardLimit = gross <= 7000 ? 300 : 250;
+  let cardDeduction = 0;
+  if (totalSpend > threshold) {
+    const excess = totalSpend - threshold;
+    // 신용카드 15%, 체크카드/현금 30% (순서: 신용카드 먼저 차감)
+    const creditExcess = Math.max(0, Math.min(credit, totalSpend) - threshold * (credit / totalSpend));
+    const debitExcess = Math.max(0, excess - creditExcess) * (debit / (debit + cash + 0.01));
+    const cashExcess = Math.max(0, excess - creditExcess) * (cash / (debit + cash + 0.01));
+    cardDeduction = Math.min(cardLimit, creditExcess * 0.15 + debitExcess * 0.30 + cashExcess * 0.30);
+  }
+
+  // 2. 의료비 세액공제 (총급여 3% 초과분의 15%, 한도 700만)
+  const medThreshold = gross * 0.03;
+  const medDeduction = Math.min(700, Math.max(0, medical - medThreshold) * 0.15);
+
+  // 3. 교육비 세액공제 (15%, 본인 한도 없음, 여기선 900만 한도)
+  const eduDeduction = Math.min(edu, 900) * 0.15;
+
+  // 4. 기부금 세액공제 (15%, 소득 30% 한도)
+  const donLimit = gross * 0.3;
+  const donDeduction = Math.min(donation, donLimit) * 0.15;
+
+  // 5. 주택청약 소득공제 (40%, 한도 96만/년, 무주택 세대주)
+  const housingDeduction = Math.min(housing * 0.4, 96);
+
+  // 6. 연금저축 + IRP 세액공제
+  const pensionLimit = Math.min(pension, 600);
+  const irpLimit = Math.min(irp, 700 - pensionLimit);
+  const pensionRate = gross <= 5500 ? 0.165 : 0.132; // 지방소득세 포함
+  const pensionDeduction = (pensionLimit + irpLimit) * pensionRate;
+
+  // 총 공제
+  const totalDeduction = cardDeduction + medDeduction + eduDeduction + donDeduction + housingDeduction + pensionDeduction;
+
+  // 예상 환급액 (간이계산: 소득공제는 세율 적용, 세액공제는 직접)
+  // 카드/주택청약은 소득공제 → 세율 곱셈
+  const taxRate = gross <= 5000 ? 0.15 : gross <= 8800 ? 0.24 : 0.35;
+  const incomeDeductionRefund = (cardDeduction + housingDeduction) * taxRate;
+  const taxCreditRefund = medDeduction + eduDeduction + donDeduction + pensionDeduction;
+  const estimatedRefund = incomeDeductionRefund + taxCreditRefund;
+
+  // Summary
+  document.getElementById('yeSummary').innerHTML = `
+    <div class="summary-card"><div class="label">예상 환급액</div><div class="value" style="color:var(--green)">${estimatedRefund.toFixed(0)}만</div><div class="sub">월 ${(estimatedRefund/12).toFixed(1)}만 효과</div></div>
+    <div class="summary-card"><div class="label">총 공제액</div><div class="value">${totalDeduction.toFixed(0)}만</div></div>
+    <div class="summary-card"><div class="label">카드 공제</div><div class="value">${cardDeduction.toFixed(0)}만</div><div class="sub">한도 ${cardLimit}만</div></div>
+    <div class="summary-card"><div class="label">연금 공제</div><div class="value" style="color:var(--cyan)">${pensionDeduction.toFixed(0)}만</div><div class="sub">납입 ${pensionLimit+irpLimit}만</div></div>
+  `;
+
+  // Detail table
+  const items = [
+    { name: '신용카드', input: credit, limit: '한도 '+cardLimit+'만 (합산)', actual: cardDeduction.toFixed(1), type: '소득공제' },
+    { name: '체크카드', input: debit, limit: '(카드 합산)', actual: '-', type: '소득공제' },
+    { name: '현금영수증', input: cash, limit: '(카드 합산)', actual: '-', type: '소득공제' },
+    { name: '의료비', input: medical, limit: '700만 (3%초과분 15%)', actual: medDeduction.toFixed(1), type: '세액공제' },
+    { name: '교육비', input: edu, limit: '본인 무한/자녀 300~900만', actual: eduDeduction.toFixed(1), type: '세액공제' },
+    { name: '기부금', input: donation, limit: '소득 30% (15%)', actual: donDeduction.toFixed(1), type: '세액공제' },
+    { name: '주택청약', input: housing, limit: '96만 (40%)', actual: housingDeduction.toFixed(1), type: '소득공제' },
+    { name: '연금저축', input: pension, limit: '600만', actual: '-', type: '세액공제' },
+    { name: 'IRP', input: irp, limit: '700만 (연금포함)', actual: '-', type: '세액공제' },
+    { name: '연금+IRP', input: pensionLimit+irpLimit, limit: '700만', actual: pensionDeduction.toFixed(1), type: '세액공제' },
+  ];
+
+  let tbl = '<table class="result-table"><thead><tr><th>항목</th><th>입력액</th><th>한도/조건</th><th>실제공제</th><th>구분</th></tr></thead><tbody>';
+  items.forEach(it => {
+    tbl += `<tr><td>${it.name}</td><td>${it.input.toLocaleString()}만</td><td style="font-size:11px">${it.limit}</td><td class="highlight">${it.actual}만</td><td style="font-size:11px;color:var(--muted)">${it.type}</td></tr>`;
+  });
+  tbl += `<tr style="border-top:2px solid var(--accent)"><td style="font-weight:700">합계</td><td></td><td></td><td class="highlight" style="font-size:16px">${totalDeduction.toFixed(0)}만</td><td></td></tr>`;
+  tbl += '</tbody></table>';
+  document.getElementById('yeDetailTable').innerHTML = tbl;
+
+  // Chart
+  const chartLabels = ['카드/현금','의료비','교육비','기부금','주택청약','연금/IRP'];
+  const chartData = [cardDeduction, medDeduction, eduDeduction, donDeduction, housingDeduction, pensionDeduction];
+  if(charts.yeChart) charts.yeChart.destroy();
+  charts.yeChart = new Chart(document.getElementById('yeChart'), {
+    type: 'doughnut', data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: ['#3b82f6','#ef4444','#22c55e','#a855f7','#f97316','#06b6d4'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 } } } } }
+  });
+
+  // Tips
+  let tips = '<div style="font-size:13px">';
+  if (pension + irp < 700) tips += `<div style="margin-bottom:6px;padding:8px;background:var(--bg);border-radius:6px;border-left:3px solid var(--cyan)">연금저축/IRP를 <strong>${700-pension-irp}만원 더 납입</strong>하면 최대 ${((700-pension-irp)*pensionRate).toFixed(0)}만원 추가 공제 가능</div>`;
+  if (totalSpend <= threshold) tips += `<div style="margin-bottom:6px;padding:8px;background:var(--bg);border-radius:6px;border-left:3px solid var(--orange)">카드 사용액이 총급여 25%(${threshold.toFixed(0)}만) 미만 - 공제 대상 없음. <strong>${(threshold-totalSpend).toFixed(0)}만 더 사용</strong>해야 공제 시작</div>`;
+  if (cardDeduction >= cardLimit) tips += `<div style="margin-bottom:6px;padding:8px;background:var(--bg);border-radius:6px;border-left:3px solid var(--green)">카드 공제 한도 도달! 추가 사용은 체크카드/현금영수증 추천</div>`;
+  if (housing === 0) tips += `<div style="margin-bottom:6px;padding:8px;background:var(--bg);border-radius:6px;border-left:3px solid var(--accent)">주택청약 미가입 - 무주택 세대주라면 연 240만 납입 시 <strong>96만원 소득공제</strong> 가능</div>`;
+  if (pension + irp === 0) tips += `<div style="margin-bottom:6px;padding:8px;background:var(--bg);border-radius:6px;border-left:3px solid var(--purple)">연금저축/IRP 미가입 - 700만원 납입 시 최대 <strong>${(700*pensionRate).toFixed(0)}만원 세액공제</strong></div>`;
+  if (tips === '<div style="font-size:13px">') tips += '<div style="color:var(--green)">현재 설정으로 주요 공제 항목을 잘 활용하고 있습니다!</div>';
+  tips += '</div>';
+  document.getElementById('yeTips').innerHTML = tips;
+}
+
+// ============================================================
+// FIRE 몬테카를로 시뮬레이션
+// ============================================================
+
+function runMonteCarlo() {
+  const monthlyGoal = parseInt(document.getElementById('fireMonthly').value);
+  const saveRate = parseInt(document.getElementById('fireSaveRate').value);
+  const baseReturn = parseFloat(document.getElementById('fireReturn').value);
+  const inflation = parseFloat(document.getElementById('fireInflation').value);
+  const currentAsset = parseInt(document.getElementById('fireCurrentAsset').value);
+  const fireTarget = monthlyGoal * 12 * 25;
+  const salary = parseInt(document.getElementById('itSalary').value);
+  const { data } = getAllData();
+
+  const NUM_SIMS = 100;
+  const simYears = getTO() - getITStart() + 1;
+  let successCount = 0;
+  const allPaths = [];
+  const fireYears = [];
+
+  for (let s = 0; s < NUM_SIMS; s++) {
+    let asset = currentAsset;
+    let fy = null;
+    const path = [];
+    for (let y = getITStart(); y <= getTO(); y++) {
+      const sal = data.it[y]?.salary || salary;
+      const th = calcTakeHome(sal);
+      const monthlySave = th.takeHome * saveRate / 100;
+      // Random return: base +/- 50% of base
+      const randomReturn = baseReturn + (Math.random() - 0.5) * baseReturn;
+      const realReturn = (randomReturn - inflation) / 100;
+      asset = (asset + monthlySave * 12) * (1 + realReturn);
+      path.push(asset / 10000);
+      const inflatedTarget = fireTarget * Math.pow(1 + inflation/100, y - 2027);
+      if (!fy && asset >= inflatedTarget) fy = y;
+    }
+    allPaths.push(path);
+    if (fy) { successCount++; fireYears.push(fy); }
+  }
+
+  const successRate = (successCount / NUM_SIMS * 100).toFixed(0);
+  const avgFireYear = fireYears.length > 0 ? Math.round(fireYears.reduce((a,b)=>a+b,0)/fireYears.length) : null;
+
+  document.getElementById('mcSummary').innerHTML = `
+    <div class="summary-card" style="border-color:${successRate>=70?'var(--green)':successRate>=40?'var(--yellow)':'var(--red)'}">
+      <div class="label">FIRE 달성 확률</div>
+      <div class="value" style="color:${successRate>=70?'var(--green)':successRate>=40?'var(--yellow)':'var(--red)'}; font-size:28px">${successRate}%</div>
+      <div class="sub">${NUM_SIMS}회 시뮬레이션</div>
+    </div>
+    <div class="summary-card"><div class="label">평균 달성 시점</div><div class="value">${avgFireYear ? avgFireYear+'년' : '-'}</div><div class="sub">${avgFireYear ? (avgFireYear-1997)+'세' : '미달성'}</div></div>
+    <div class="summary-card"><div class="label">성공 횟수</div><div class="value">${successCount}/${NUM_SIMS}</div></div>
+  `;
+
+  // Chart: show all paths
+  const years = [];
+  for (let y = getITStart(); y <= getTO(); y++) years.push(y);
+  const datasets = [];
+
+  // Show 20 sample paths
+  for (let i = 0; i < Math.min(20, NUM_SIMS); i++) {
+    datasets.push({
+      data: allPaths[i], borderColor: 'rgba(59,130,246,0.15)', borderWidth: 1, pointRadius: 0, tension: .3
+    });
+  }
+  // Median path
+  const medianPath = years.map((_, idx) => {
+    const vals = allPaths.map(p => p[idx]).sort((a,b) => a-b);
+    return vals[Math.floor(vals.length/2)];
+  });
+  datasets.push({ label: '중위 경로', data: medianPath, borderColor: '#22c55e', borderWidth: 3, pointRadius: 0, tension: .3 });
+
+  // Target line
+  datasets.push({ label: 'FIRE 목표', data: years.map(y => fireTarget * Math.pow(1+inflation/100, y-getITStart()) / 10000), borderColor: '#ef4444', borderWidth: 2, borderDash: [6,3], pointRadius: 0, tension: .3 });
+
+  if(charts.mcChart) charts.mcChart.destroy();
+  charts.mcChart = new Chart(document.getElementById('mcChart'), {
+    type: 'line', data: { labels: years, datasets },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#94a3b8', filter: item => item.text } } },
+      scales: { x: { ticks: { color: '#64748b', maxTicksLimit: 12 }, grid: { color: '#1e293b' } }, y: { ticks: { color: '#64748b', callback: v => v.toFixed(0)+'억' }, grid: { color: '#1e293b' } } }
+    }
+  });
+}
+
+// Patch updateFireTab to include Monte Carlo
+const _origUpdateFireTab = updateFireTab;
+updateFireTab = function() {
+  _origUpdateFireTab();
+  runMonteCarlo();
+};
+
+// ============================================================
+// 재테크 탭 - 이자>원금 시점 추가
+// ============================================================
+
+const _origUpdateInvestChart = updateInvestChart;
+updateInvestChart = function() {
+  _origUpdateInvestChart();
+  // Find crossover year
+  const monthly = parseInt(document.getElementById('monthlySave').value);
+  const saveGr = parseInt(document.getElementById('saveGrowth').value);
+  const stockR = parseInt(document.getElementById('stockRatio').value)/100;
+  const bondR = parseInt(document.getElementById('bondRatio').value)/100;
+  const cashR2 = Math.max(0, 1-stockR-bondR);
+  const stockRet = parseFloat(document.getElementById('stockReturn').value)/100;
+  const bondRet = parseFloat(document.getElementById('bondReturn').value)/100;
+  const cashRet = parseFloat(document.getElementById('cashReturn').value)/100;
+
+  let stock=0,bond=0,cash2=0,deposited=0,curM=monthly,crossYear=null;
+  for(let y=getITStart();y<=getTO();y++){
+    const as=curM*12; deposited+=as;
+    stock+=as*stockR; bond+=as*bondR; cash2+=as*cashR2;
+    stock*=(1+stockRet); bond*=(1+bondRet); cash2*=(1+cashRet);
+    const t=stock+bond+cash2;
+    if(!crossYear && (t-deposited) >= deposited) crossYear=y;
+    curM*=(1+saveGr/100);
+  }
+  const el = document.getElementById('investSnowballInfo');
+  if (el) {
+    if (crossYear) {
+      el.innerHTML = `<div style="font-size:20px;font-weight:800;color:var(--purple);margin:8px 0">${crossYear}년 (${crossYear-2027+1}년차, ${crossYear-1997}세)</div>
+        <div style="font-size:13px;color:var(--muted)">이 시점 이후 투자 수익이 원금을 초과하여 자산이 가속 성장합니다.</div>`;
+    } else {
+      el.innerHTML = `<div style="font-size:16px;font-weight:700;color:var(--orange);margin:8px 0">2060년까지 도달하지 않음</div>
+        <div style="font-size:13px;color:var(--muted)">수익률을 높이거나 투자 기간을 늘려보세요.</div>`;
+    }
+  }
+};
+
+// ============================================================
+// 복리/부동산 탭 fillTable 확장
+// ============================================================
+
+const _origFillTable = fillTable;
+fillTable = function(prefix) {
+  _origFillTable(prefix);
+
+  if (prefix === 'cpGrowth') {
+    // Already handled inline in updateCompoundTab
+    const el = document.getElementById(prefix+'-table');
+    if (el) el.innerHTML = document.getElementById('cpTable')?.innerHTML || '';
+  }
+
+  if (prefix === 'reCompare') {
+    const el = document.getElementById(prefix+'-table');
+    if (el) el.innerHTML = document.getElementById('reCompareTable')?.innerHTML || '';
+  }
+};
+</script>
+</div><!-- main-content -->
+</div><!-- app-layout -->
+</body>
+</html>
